@@ -84,6 +84,7 @@
     }
   }
 }
+```
 
 ### 3. 功能需求 (Functional Requirements)
 | ID | 模組 | 功能描述 |
