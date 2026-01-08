@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>喵嗚評語助手 V4.0 (時光屋版)</title>
+    <script src="config.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .input-focus { transition: all 0.3s ease; }
+        .input-focus:focus { transform: scale(1.01); }
+        /* 模態窗過渡動畫 */
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+    </style>
+</head>
+<body class="bg-orange-50 h-screen overflow-hidden text-slate-800">
+
+<div id="app" class="flex h-full max-w-[1920px] mx-auto shadow-2xl relative">
+
+    <transition name="fade">
+        <div v-if="showClassManager" class="absolute inset-0 z-50 bg-orange-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full border-4 border-orange-200 overflow-hidden flex flex-col max-h-[90vh]">
+                <div class="bg-orange-100 p-6 flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-orange-800 flex items-center gap-2">
+                        <span>🏡</span> 貓窩管理 (班級切換)
+                    </h2>
+                    <button @click="showClassManager = false" class="text-slate-400 hover:text-slate-600 text-2xl">✕</button>
+                </div>
+
+                <div class="p-6 overflow-y-auto flex-1">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                        <div v-for="(cls, id) in db.classes" :key="id" 
+                             @click="switchClass(id)"
+                             class="p-4 rounded-xl border-2 cursor-pointer transition-all relative group"
+                             :class="db.activeClassId === id ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200' : 'border-slate-100 hover:border-orange-300'">
+                            
+                            <div class="font-bold text-lg text-slate-700">{{ cls.name }}</div>
+                            <div class="text-xs text-slate-400 mt-1">{{ cls.students.length }} 隻小貓</div>
+                            <div v-if="db.activeClassId === id" class="absolute top-2 right-2 text-orange-500 text-xs font-bold bg-white px-2 py-0.5 rounded-full border border-orange-200">當前</div>
+                            
+                            <button v-if="Object.keys(db.classes).length > 1" 
+                                    @click.stop="deleteClass(id)"
+                                    class="absolute bottom-2 right-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-slate-100 my-4"></div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <h3 class="font-bold text-slate-600 mb-3 flex items-center gap-2">🆕 建立新班級</h3>
+                            <div class="flex gap-2 mb-2">
+                                <input v-model="newClassName" type="text" placeholder="例如：115學年 601班" class="flex-1 px-3 py-2 border rounded-lg text-sm">
+                            </div>
+                            <div class="flex gap-2 items-center">
+                                <span class="text-xs text-slate-400">人數:</span>
+                                <input v-model.number="newClassCount" type="number" min="1" max="50" class="w-16 px-2 py-1 border rounded-lg text-sm text-center">
+                                <button @click="createNewClass" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold py-2 rounded-lg transition">建立</button>
+                            </div>
+                        </div>
+
+                        <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 relative overflow-hidden group">
+                            <h3 class="font-bold text-blue-800 mb-2 flex items-center gap-2">📂 匯入舊 Excel (時光機)</h3>
+                            <p class="text-xs text-blue-600 mb-4 leading-relaxed">
+                                將之前匯出的 xlsx 檔案拖入或點擊下方按鈕，系統會自動建立包含舊資料的新班級。
+                            </p>
+                            <label class="block w-full bg-white border border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white text-center py-2 rounded-lg cursor-pointer transition text-sm font-bold shadow-sm">
+                                選擇檔案匯入
+                                <input type="file" accept=".xlsx, .xls" class="hidden" @change="handleImportExcel">
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </transition>
+    
+    <div class="w-80 bg-white border-r border-orange-100 flex flex-col z-10">
+        <div class="p-5 bg-orange-400 text-white shadow-md z-20 relative overflow-hidden">
+            <div class="relative z-10">
+                <div class="flex items-center justify-between mb-1 cursor-pointer hover:bg-orange-500/50 rounded p-1 -ml-1 transition" @click="showClassManager = true">
+                    <h1 class="text-lg font-bold tracking-wide flex items-center gap-1">
+                        <span>🏡</span> {{ currentClassName }}
+                    </h1>
+                    <span class="text-xs bg-white/20 px-2 py-0.5 rounded text-white">切換 ▼</span>
+                </div>
+                <div class="mt-3 relative">
+                    <input type="text" v-model="searchQuery" 
+                           placeholder="搜尋小魚乾..." 
+                           class="w-full pl-8 pr-3 py-1.5 text-slate-800 rounded-lg border-0 focus:ring-2 focus:ring-orange-200 shadow-sm text-sm placeholder-orange-300 bg-white/95">
+                    <span class="absolute left-2.5 top-1.5 text-orange-300 text-xs">🔍</span>
+                </div>
+            </div>
+            <div class="absolute -right-4 -bottom-6 text-8xl opacity-10 rotate-12 select-none">🐱</div>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-3 space-y-2 no-scrollbar bg-orange-50/30">
+            <div v-for="(student, index) in filteredStudents" :key="student.id" 
+                 @click="selectStudent(student.originalIndex)"
+                 class="group relative p-3 rounded-2xl cursor-pointer border transition-all duration-200 pr-8"
+                 :class="currentIdx === student.originalIndex ? 'bg-white border-orange-300 shadow-md ring-2 ring-orange-100' : 'bg-white/60 border-transparent hover:bg-white hover:border-orange-200'">
+                
+                <div class="flex flex-col">
+                    <span class="text-xs font-mono text-slate-400 mb-0.5 flex items-center gap-1">
+                        <span class="text-[10px]">🐾</span> 座號 {{ student.id }}
+                    </span>
+                    <div class="flex items-center gap-2">
+                        <span v-if="student.name" class="font-bold text-slate-700 text-lg">{{ student.name }}</span>
+                        <span v-else class="text-slate-400 text-sm italic">(點擊輸入姓名)</span>
+                        
+                        <span v-if="student.polished_comment" class="text-[10px] text-orange-600 font-bold bg-orange-100 px-2 py-0.5 rounded-full border border-orange-200">
+                            ✔
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="p-2 border-t border-orange-100 text-xs text-slate-400 text-center bg-white flex justify-between px-4">
+            <span>{{ students.length }} 隻小貓</span>
+            <button @click="resetCurrentClass" class="text-red-300 hover:text-red-500 hover:underline">清空本班</button>
+        </div>
+    </div>
+
+    <div class="flex-1 flex flex-col h-full bg-white relative">
+        <div class="h-16 bg-white border-b border-orange-50 flex items-center justify-between px-8 shadow-sm z-10">
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold uppercase" :class="apiKey ? 'text-emerald-600' : 'text-red-500'">
+                        {{ apiKey ? '罐罐鑰匙 (OK)' : '罐罐鑰匙 (未輸入)' }}
+                    </span>
+                    <input type="password" v-model="apiKey" :disabled="isConfigLoaded" 
+                           placeholder="AIza..." 
+                           class="bg-orange-50 border rounded-lg px-2 py-1 w-24 text-sm focus:w-64 transition-all focus:outline-none disabled:bg-slate-100 disabled:text-slate-400"
+                           :class="!apiKey ? 'border-red-300 ring-2 ring-red-100' : 'border-orange-200 focus:border-orange-400'">
+                </div>
+                
+                <div class="flex items-center gap-2 border-l pl-4 border-slate-100">
+                    <span class="text-sm font-bold text-slate-600">領域：</span>
+                    <select v-model="selectedSubject" class="bg-orange-50 border border-orange-200 text-slate-700 text-sm rounded-lg focus:ring-orange-500 focus:border-orange-500 block p-1.5 font-bold cursor-pointer">
+                        <option value="一般導師">導師 (班級經營)</option>
+                        <option value="國語文">國語文</option>
+                        <option value="數學">數學</option>
+                        <option value="英語文">英語文</option>
+                        <option value="自然科學">自然科學</option>
+                        <option value="社會">社會</option>
+                        <option value="藝術">藝術</option>
+                        <option value="健康與體育">健體</option>
+                        <option value="綜合活動">綜合</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button @click="exportToExcel" class="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors text-sm font-bold">
+                    <span>🐟</span> 匯出 Excel
+                </button>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6 md:p-8 bg-orange-50/30" v-if="currentStudent">
+            <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
+                
+                <div class="flex flex-col gap-4">
+                    
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-orange-100 flex items-center gap-4 group hover:border-orange-300 transition-colors">
+                        <div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform select-none">
+                            🐱
+                        </div>
+                        <div class="flex-1">
+                            <label class="text-xs font-bold text-slate-400 uppercase">學生姓名</label>
+                            <input type="text" v-model="currentStudent.name" 
+                                   placeholder="輸入名字..." 
+                                   class="w-full text-2xl font-bold text-slate-800 border-b border-transparent focus:border-orange-400 focus:outline-none input-focus placeholder-slate-200 bg-transparent">
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-orange-100">
+                        <div class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-1">
+                            <span>🐾</span> 貓貓觀察標籤
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button v-for="tag in currentTags" :key="tag" @click="addTag(tag)"
+                                    class="px-3 py-1 text-sm bg-slate-50 hover:bg-orange-100 hover:text-orange-700 text-slate-600 rounded-full transition-colors border border-slate-100">
+                                {{ tag }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 flex flex-col bg-white rounded-2xl shadow-sm border border-orange-100 overflow-hidden">
+                        <div class="p-3 bg-orange-50/50 border-b border-orange-100 flex justify-between items-center">
+                            <h3 class="font-bold text-slate-700 flex items-center gap-2">
+                                <span>📝</span> 觀察紀錄
+                            </h3>
+                            <button @click="currentStudent.raw_comment = ''" class="text-xs text-slate-400 hover:text-red-500">清空</button>
+                        </div>
+                        <textarea v-model="currentStudent.raw_comment" 
+                                  class="flex-1 w-full p-5 resize-none focus:outline-none text-slate-700 leading-relaxed placeholder-slate-300 bg-transparent"
+                                  placeholder="請輸入觀察紀錄，貓貓會幫你潤飾..."></textarea>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-4">
+                    
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border-2 border-orange-100 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 bg-orange-200 text-orange-800 text-xs px-3 py-1 rounded-bl-xl font-bold">⭐ 八字箴言</div>
+                        <div class="text-center py-2 flex items-center justify-center min-h-[3rem]">
+                            <div v-if="currentStudent.motto" class="text-2xl font-bold text-orange-600 tracking-widest font-serif">
+                                {{ currentStudent.motto }}
+                            </div>
+                            <div v-else class="text-slate-300 text-sm flex items-center gap-2">
+                                <span>🐾</span> 等待貓貓踩出箴言...
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 flex flex-col bg-white rounded-2xl shadow-lg border border-orange-100 overflow-hidden relative ring-1 ring-orange-50">
+                        <div class="p-3 bg-gradient-to-r from-orange-50 to-white border-b border-orange-100 flex justify-between items-center">
+                            <h3 class="font-bold text-orange-800 flex items-center gap-2">
+                                <span>✨</span> 暖心評語
+                            </h3>
+                            <div class="flex gap-2">
+                                <button v-if="currentStudent.polished_comment" @click="copyResult" class="text-xs text-orange-600 font-bold hover:bg-orange-100 px-2 py-1 rounded transition">複製</button>
+                            </div>
+                        </div>
+                        
+                        <textarea v-model="currentStudent.polished_comment" 
+                                  class="flex-1 w-full p-6 resize-none focus:outline-none text-slate-800 leading-relaxed bg-white"
+                                  placeholder="貓貓生成的優美評語將顯示於此..."></textarea>
+
+                        <div class="absolute bottom-6 right-6">
+                            <button @click="generateComment" :disabled="isGenerating || !apiKey"
+                                    class="flex items-center justify-center gap-2 px-6 py-3 rounded-full shadow-lg transition-all transform hover:scale-105 disabled:opacity-80 disabled:cursor-not-allowed disabled:transform-none text-white font-bold text-lg"
+                                    :class="!apiKey ? 'bg-slate-400' : 'bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600'">
+                                
+                                <span v-if="!apiKey">🚫 缺罐罐 (Key)</span>
+                                <span v-else-if="isGenerating">🐾 貓貓思考中...</span>
+                                <span v-else>🐾 貓貓幫你寫</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-else class="flex-1 flex flex-col items-center justify-center text-slate-300">
+            <div class="text-8xl mb-4 opacity-30 grayscale cursor-pointer hover:scale-110 transition" @click="showClassManager=true">😽</div>
+            <p class="text-xl font-medium text-slate-400">請先點擊左側小貓，或點上方切換班級</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, reactive, watch, onMounted, computed } = Vue;
+
+    createApp({
+        setup() {
+            // 系統設定
+            const apiKey = ref('');
+            const isConfigLoaded = ref(false);
+            const isGenerating = ref(false);
+            const selectedSubject = ref('一般導師');
+            const searchQuery = ref('');
+            
+            // 班級管理與UI控制
+            const showClassManager = ref(false);
+            const newClassName = ref('');
+            const newClassCount = ref(30);
+
+            // 資料庫核心結構 V4.0 (多班級)
+            const db = reactive({
+                activeClassId: 'default',
+                classes: {}
+            });
+            
+            // 狀態與指針
+            const currentIdx = ref(-1);
+
+            // 標籤資料庫 (維持不變)
+            const tagsDB = {
+                '一般導師': ['熱心助人', '負責盡職', '活潑外向', '人緣極佳', '沉默寡言', '專注力佳', '容易分心', '作業優良', '需加強整潔', '禮貌周到', '愛惜公物', '樂於分享'],
+                '國語文': ['字跡工整', '喜愛閱讀', '朗讀流暢', '語意表達佳', '成語運用豐富', '寫作具創意', '字音字形需加強'],
+                '數學': ['邏輯清晰', '計算細心', '理解力強', '解題速度快', '粗心大意', '空間概念佳', '運算需加強'],
+                '英語文': ['發音標準', '樂於開口', '單字量豐富', '聽力敏銳', '勇於表達', '需加強拼字'],
+                '藝術': ['具備美感', '富有創意', '色彩豐富', '線條大膽', '歌聲優美', '節奏感強', '鑑賞能力佳'],
+                '健康與體育': ['體能優異', '協調性佳', '團隊合作', '遵守規則', '反應靈敏', '展現運動家精神'],
+                '自然科學': ['觀察入微', '勇於實驗', '喜愛發問', '邏輯推演', '紀錄詳實'],
+                '社會': ['關懷環境', '具備國際觀', '尊重多元', '樂於討論', '具備公民素養']
+            };
+
+            const MODEL_CANDIDATES = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-flash-latest'];
+
+            // Computed Properties
+            const currentTags = computed(() => tagsDB[selectedSubject.value] || tagsDB['一般導師']);
+            
+            // 取得目前作用中的班級資料
+            const currentClassData = computed(() => {
+                if (!db.classes[db.activeClassId]) return { name: '未知班級', students: [] };
+                return db.classes[db.activeClassId];
+            });
+            
+            const currentClassName = computed(() => currentClassData.value.name);
+            const students = computed(() => currentClassData.value.students);
+
+            const filteredStudents = computed(() => {
+                if (!searchQuery.value) return students.value.map((s, i) => ({...s, originalIndex: i}));
+                return students.value
+                    .map((s, i) => ({...s, originalIndex: i}))
+                    .filter(s => s.id.includes(searchQuery.value) || s.name.includes(searchQuery.value));
+            });
+
+            const currentStudent = computed(() => currentIdx.value !== -1 ? students.value[currentIdx.value] : null);
+
+            // Life Cycle & Initialization
+            onMounted(() => {
+                // Key Logic
+                if (window.APP_CONFIG && window.APP_CONFIG.GEMINI_API_KEY) {
+                    apiKey.value = window.APP_CONFIG.GEMINI_API_KEY;
+                    isConfigLoaded.value = true;
+                } else {
+                    const savedKey = localStorage.getItem('gemini_api_key');
+                    if (savedKey) apiKey.value = savedKey;
+                }
+
+                // Database Migration Logic
+                const savedDB = localStorage.getItem('gemini_comments_v4_db');
+                if (savedDB) {
+                    // 如果有 V4 資料，直接讀取
+                    Object.assign(db, JSON.parse(savedDB));
+                } else {
+                    // 如果沒有 V4，檢查是否有 V3 資料進行遷移
+                    const v3Data = localStorage.getItem('gemini_comments_v3_data');
+                    
+                    const defaultClassId = 'class_' + Date.now();
+                    db.activeClassId = defaultClassId;
+                    
+                    if (v3Data) {
+                        // 遷移舊資料
+                        db.classes[defaultClassId] = {
+                            name: '匯入的舊班級',
+                            students: JSON.parse(v3Data)
+                        };
+                        alert('已偵測到舊版資料，貓貓已自動幫您搬家到「匯入的舊班級」囉！🐾');
+                    } else {
+                        // 全新初始化
+                        db.classes[defaultClassId] = {
+                            name: '預設班級',
+                            students: []
+                        };
+                        showClassManager.value = true; // 第一次來，打開管理介面
+                    }
+                }
+            });
+
+            // Persistence
+            watch(db, (newVal) => {
+                localStorage.setItem('gemini_comments_v4_db', JSON.stringify(newVal));
+            }, { deep: true });
+            
+            watch(apiKey, (newVal) => { if (!isConfigLoaded.value) localStorage.setItem('gemini_api_key', newVal); });
+
+
+            // Methods: Class Management
+            const createNewClass = () => {
+                if (!newClassName.value.trim()) { alert('請幫貓窩取個名字！'); return; }
+                const newId = 'class_' + Date.now();
+                
+                // 產生學生空殼
+                const newStudents = [];
+                for (let i = 1; i <= newClassCount.value; i++) {
+                    newStudents.push({
+                        id: String(i).padStart(2, '0'),
+                        name: '', raw_comment: '', polished_comment: '', motto: ''
+                    });
+                }
+
+                db.classes[newId] = {
+                    name: newClassName.value,
+                    students: newStudents
+                };
+                
+                // 切換過去
+                switchClass(newId);
+                newClassName.value = '';
+            };
+
+            const switchClass = (id) => {
+                db.activeClassId = id;
+                currentIdx.value = -1; // 重置選取
+                // 如果該班級沒人，提示是否要新增
+                if (db.classes[id].students.length === 0) {
+                   // logic kept simple
+                }
+            };
+
+            const deleteClass = (id) => {
+                if (Object.keys(db.classes).length <= 1) { alert('至少要保留一個貓窩喔！'); return; }
+                if (confirm(`確定要拆除「${db.classes[id].name}」這個貓窩嗎？資料會消失喔！`)) {
+                    delete db.classes[id];
+                    // 如果刪到當前班級，切換到第一個
+                    if (db.activeClassId === id) {
+                        db.activeClassId = Object.keys(db.classes)[0];
+                        currentIdx.value = -1;
+                    }
+                }
+            };
+
+            // Excel Import Logic (V4 Core)
+            const handleImportExcel = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const bstr = evt.target.result;
+                    const wb = XLSX.read(bstr, { type: 'binary' });
+                    const wsname = wb.SheetNames[0];
+                    const ws = wb.Sheets[wsname];
+                    const data = XLSX.utils.sheet_to_json(ws);
+
+                    if (data.length === 0) { alert('Excel 裡面沒有小魚乾 (資料) 喔！'); return; }
+
+                    // 解析資料並映射回我們的結構
+                    // 假設欄位名稱：座號, 姓名, 八字箴言, 期末評語, 原始紀錄
+                    const importedStudents = data.map(row => ({
+                        id: row['座號'] ? String(row['座號']).padStart(2, '0') : '00',
+                        name: row['姓名'] || '',
+                        motto: row['八字箴言'] || '',
+                        polished_comment: row['期末評語'] || '',
+                        raw_comment: row['原始紀錄'] || ''
+                    }));
+
+                    // 建立新班級
+                    const newId = 'class_import_' + Date.now();
+                    const fileName = file.name.replace('.xlsx', '').replace('.xls', '');
+                    
+                    db.classes[newId] = {
+                        name: fileName, // 使用檔名當班級名
+                        students: importedStudents
+                    };
+
+                    switchClass(newId);
+                    alert(`成功搬運 ${importedStudents.length} 隻小貓到「${fileName}」！`);
+                    showClassManager.value = false;
+                };
+                reader.readAsBinaryString(file);
+                e.target.value = ''; // Reset input
+            };
+
+
+            // Methods: Student Operations
+            const resetCurrentClass = () => {
+                if (confirm('喵？確定要清空本班所有資料嗎？')) {
+                    db.classes[db.activeClassId].students = [];
+                    currentIdx.value = -1;
+                }
+            };
+
+            const selectStudent = (index) => currentIdx.value = index;
+            
+            const addTag = (tag) => {
+                if (currentStudent.value) {
+                    const separator = currentStudent.value.raw_comment.length > 0 ? '、' : '';
+                    currentStudent.value.raw_comment += separator + tag;
+                }
+            };
+
+            // AI Generation (Same as V3.1)
+            const generateComment = async () => {
+                if (!apiKey.value) { alert('請輸入罐罐鑰匙 (API Key)'); return; }
+                if (!currentStudent.value.name) { alert('請先輸入學生姓名'); return; }
+                if (!currentStudent.value.raw_comment) { alert('請輸入觀察紀錄'); return; }
+
+                isGenerating.value = true;
+                currentStudent.value.polished_comment = "🐾 貓貓正在踩鍵盤...";
+                currentStudent.value.motto = "...";
+                
+                const prompt = `
+                    角色：台灣國小「${selectedSubject.value}」老師。
+                    任務：為學生「${currentStudent.value.name}」撰寫期末評語與學籍卡八字箴言。
+                    格式：JSON output {"comment": "...", "motto": "..."}
+                    規則：
+                    1. 主詞「${currentStudent.value.name}」。
+                    2. 字數 70-80 字。
+                    3. 語氣溫暖肯定。
+                    4. Motto 為兩個四字成語或形容詞組。
+                    
+                    觀察紀錄：${currentStudent.value.raw_comment}
+                `;
+
+                let success = false;
+                for (const modelName of MODEL_CANDIDATES) {
+                    try {
+                        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.value}`;
+                        const response = await fetch(API_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                        });
+                        const data = await response.json();
+                        if (data.error) throw new Error(data.error.message);
+                        
+                        if (data.candidates && data.candidates[0].content) {
+                            let text = data.candidates[0].content.parts[0].text.trim();
+                            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                            const result = JSON.parse(text);
+                            currentStudent.value.polished_comment = result.comment;
+                            currentStudent.value.motto = result.motto;
+                            success = true;
+                            break;
+                        }
+                    } catch (e) { console.warn(e); }
+                }
+
+                if (!success) {
+                    currentStudent.value.polished_comment = ""; 
+                    currentStudent.value.motto = "";
+                    alert('生成失敗，請檢查 Key 或網路。');
+                }
+                isGenerating.value = false;
+            };
+
+            const exportToExcel = () => {
+                const ws = XLSX.utils.json_to_sheet(students.value.map(s => ({ 
+                    '座號': s.id, '姓名': s.name, '八字箴言': s.motto,
+                    '期末評語': s.polished_comment, '原始紀錄': s.raw_comment
+                })));
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "評語表");
+                XLSX.writeFile(wb, `${currentClassName.value}_${selectedSubject.value}.xlsx`);
+            };
+
+            const copyResult = () => { navigator.clipboard.writeText(currentStudent.value.polished_comment); };
+
+            return { 
+                apiKey, isConfigLoaded, students, currentIdx, currentStudent, isGenerating, 
+                searchQuery, filteredStudents, selectedSubject, currentTags, 
+                // Class Manager Props
+                db, showClassManager, newClassName, newClassCount, currentClassName,
+                // Methods
+                createNewClass, switchClass, deleteClass, handleImportExcel,
+                resetCurrentClass, selectStudent, addTag, generateComment, exportToExcel, copyResult 
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
