@@ -26,7 +26,7 @@
 ### 🌐 方法一：使用線上發佈版本 (GitHub Pages)
 最推薦的方式！無需下載任何檔案，只要有網址即可使用。
 
-1. **開啟網頁**：前往部署好的 GitHub Pages 網址（例如：`https://neriakto.github.io/meow-comment-helper/`）。
+1. **開啟網頁**：前往部署好的 GitHub Pages 網址（例如：`https://neriakto.github.io/Meow-Comment-Helper/`）。
 2. **輸入金鑰**：
    * 首次進入時，畫面右上方會顯示紅色的 **「🚫 罐罐鑰匙 (未輸入)」**。
    * 請在該輸入框中貼上您的 **Google Gemini API Key**。
@@ -104,4 +104,5 @@
 * **V1.0**：基礎評語生成功能。
 
 ## 📄 版權說明 (License)
+
 MIT License. 歡迎教育工作者自由使用與修改。
