@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>喵嗚評語助手 V5.0</title>
+    <title>喵嗚評語助手 V5.1 (行政匯入版)</title>
     <script src="config.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -27,46 +27,19 @@
         <div v-if="showCloudModal" class="absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
             <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full border-4 border-blue-200 overflow-hidden flex flex-col">
                 <div class="bg-blue-100 p-6 flex justify-between items-center">
-                    <h2 class="text-2xl font-bold text-blue-800 flex items-center gap-2">
-                        <span>☁️</span> 貓貓雲端同步
-                    </h2>
+                    <h2 class="text-2xl font-bold text-blue-800 flex items-center gap-2"><span>☁️</span> 貓貓雲端同步</h2>
                     <button @click="showCloudModal = false" class="text-slate-400 hover:text-slate-600 text-2xl">✕</button>
                 </div>
-                
                 <div class="p-8 flex flex-col gap-6">
                     <div class="space-y-2">
                         <label class="text-sm font-bold text-slate-500 uppercase">您的 Google Script 網址 (GAS URL)</label>
-                        <input type="text" v-model="gasUrl" 
-                               placeholder="請貼上 https://script.google.com/.../exec" 
-                               class="w-full p-3 border rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-blue-300 outline-none transition-all"
-                               :class="gasUrl ? 'border-blue-300' : 'border-red-300'">
-                        <div class="text-xs text-slate-400">
-                            * 這是您的專屬雲端資料庫連結，請勿外洩。
-                        </div>
+                        <input type="text" v-model="gasUrl" placeholder="請貼上 https://script.google.com/.../exec" class="w-full p-3 border rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-blue-300 outline-none transition-all" :class="gasUrl ? 'border-blue-300' : 'border-red-300'">
                     </div>
-
-                    <div class="border-t border-slate-100"></div>
-
                     <div class="grid grid-cols-2 gap-4">
-                        <button @click="uploadToCloud" :disabled="!gasUrl || isSyncing"
-                                class="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-blue-100 hover:bg-blue-50 hover:border-blue-300 transition gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                            <span class="text-3xl">⬆️</span>
-                            <span class="font-bold text-blue-700">上傳備份</span>
-                            <span class="text-xs text-blue-400">覆蓋雲端資料</span>
-                        </button>
-
-                        <button @click="downloadFromCloud" :disabled="!gasUrl || isSyncing"
-                                class="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-green-100 hover:bg-green-50 hover:border-green-300 transition gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                            <span class="text-3xl">⬇️</span>
-                            <span class="font-bold text-green-700">下載還原</span>
-                            <span class="text-xs text-green-400">覆蓋本機資料</span>
-                        </button>
+                        <button @click="uploadToCloud" :disabled="!gasUrl || isSyncing" class="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-blue-100 hover:bg-blue-50 hover:border-blue-300 transition gap-2 disabled:opacity-50"><span class="text-3xl">⬆️</span><span class="font-bold text-blue-700">上傳備份</span></button>
+                        <button @click="downloadFromCloud" :disabled="!gasUrl || isSyncing" class="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-green-100 hover:bg-green-50 hover:border-green-300 transition gap-2 disabled:opacity-50"><span class="text-3xl">⬇️</span><span class="font-bold text-green-700">下載還原</span></button>
                     </div>
-
-                    <div v-if="syncStatus" class="text-center text-sm font-bold p-3 rounded-xl transition-all" 
-                         :class="syncStatus.includes('成功') ? 'bg-green-100 text-green-700' : (syncStatus.includes('失敗') ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-600')">
-                        {{ syncStatus }}
-                    </div>
+                    <div v-if="syncStatus" class="text-center text-sm font-bold p-3 rounded-xl transition-all" :class="syncStatus.includes('成功') ? 'bg-green-100 text-green-700' : (syncStatus.includes('失敗') ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-600')">{{ syncStatus }}</div>
                 </div>
             </div>
         </div>
@@ -84,23 +57,43 @@
                         <div v-for="(cls, id) in db.classes" :key="id" @click="switchClass(id)"
                              class="p-4 rounded-xl border-2 cursor-pointer transition-all relative group"
                              :class="db.activeClassId === id ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200' : 'border-slate-100 hover:border-orange-300'">
-                            <div class="font-bold text-lg text-slate-700">{{ cls.name }}</div>
+                            <div class="font-bold text-lg text-slate-700">
+                                {{ cls.grade }} 年 {{ cls.classNum }} 班
+                                <span class="text-sm font-normal text-slate-500">({{ cls.name || '未命名' }})</span>
+                            </div>
                             <div class="text-xs text-slate-400 mt-1">{{ cls.students.length }} 隻小貓</div>
                             <div v-if="db.activeClassId === id" class="absolute top-2 right-2 text-orange-500 text-xs font-bold bg-white px-2 py-0.5 rounded-full border border-orange-200">當前</div>
                             <button v-if="Object.keys(db.classes).length > 1" @click.stop="deleteClass(id)" class="absolute bottom-2 right-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1">🗑️</button>
                         </div>
                     </div>
                     <div class="border-t border-slate-100 my-4"></div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                            <h3 class="font-bold text-slate-600 mb-3">🆕 建立新班級</h3>
-                            <div class="flex gap-2 mb-2"><input v-model="newClassName" type="text" placeholder="例如：115學年 601班" class="flex-1 px-3 py-2 border rounded-lg text-sm"></div>
-                            <div class="flex gap-2 items-center"><span class="text-xs text-slate-400">人數:</span><input v-model.number="newClassCount" type="number" min="1" max="50" class="w-16 px-2 py-1 border rounded-lg text-sm text-center"><button @click="createNewClass" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold py-2 rounded-lg transition">建立</button></div>
+                    
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <h3 class="font-bold text-slate-600 mb-3">🆕 建立新班級 (行政匯入用)</h3>
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label class="text-xs text-slate-400 block mb-1">年級 (數字)</label>
+                                <input v-model="newGrade" type="number" min="1" max="6" placeholder="如: 4" class="w-full px-3 py-2 border rounded-lg text-sm text-center font-bold">
+                            </div>
+                            <div>
+                                <label class="text-xs text-slate-400 block mb-1">班序 (數字)</label>
+                                <input v-model="newClassNum" type="number" min="1" max="30" placeholder="如: 7" class="w-full px-3 py-2 border rounded-lg text-sm text-center font-bold">
+                            </div>
                         </div>
-                        <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 relative overflow-hidden group">
-                            <h3 class="font-bold text-blue-800 mb-2">📂 匯入舊 Excel</h3>
-                            <label class="block w-full bg-white border border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white text-center py-2 rounded-lg cursor-pointer transition text-sm font-bold shadow-sm">選擇檔案匯入<input type="file" accept=".xlsx, .xls" class="hidden" @change="handleImportExcel"></label>
+                        <div class="flex gap-2 items-center">
+                            <span class="text-xs text-slate-400">班級別名:</span>
+                            <input v-model="newClassName" type="text" placeholder="如: 114學年..." class="flex-1 px-3 py-2 border rounded-lg text-sm">
                         </div>
+                        <div class="flex gap-2 items-center mt-3">
+                            <span class="text-xs text-slate-400">學生數:</span>
+                            <input v-model.number="newClassCount" type="number" min="1" max="50" class="w-16 px-2 py-1 border rounded-lg text-sm text-center">
+                            <button @click="createNewClass" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold py-2 rounded-lg transition">建立班級</button>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 bg-blue-50 p-4 rounded-xl border border-blue-100 relative overflow-hidden group">
+                        <h3 class="font-bold text-blue-800 mb-2">📂 匯入舊 Excel (時光機)</h3>
+                        <label class="block w-full bg-white border border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white text-center py-2 rounded-lg cursor-pointer transition text-sm font-bold shadow-sm">選擇檔案匯入<input type="file" accept=".xlsx, .xls" class="hidden" @change="handleImportExcel"></label>
                     </div>
                 </div>
             </div>
@@ -111,7 +104,11 @@
         <div class="p-5 bg-orange-400 text-white shadow-md z-20 relative overflow-hidden">
             <div class="relative z-10">
                 <div class="flex items-center justify-between mb-1 cursor-pointer hover:bg-orange-500/50 rounded p-1 -ml-1 transition" @click="showClassManager = true">
-                    <h1 class="text-lg font-bold tracking-wide flex items-center gap-1"><span>🏡</span> {{ currentClassName }}</h1>
+                    <h1 class="text-lg font-bold tracking-wide flex items-center gap-1">
+                        <span>🏡</span> 
+                        <span v-if="currentClassData.grade">{{ currentClassData.grade }}年{{ currentClassData.classNum }}班</span>
+                        <span v-else>{{ currentClassData.name }}</span>
+                    </h1>
                     <span class="text-xs bg-white/20 px-2 py-0.5 rounded text-white">切換 ▼</span>
                 </div>
                 <div class="mt-3 relative">
@@ -162,12 +159,8 @@
                 </div>
             </div>
             <div class="flex gap-3">
-                <button @click="showCloudModal = true" class="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors text-sm font-bold">
-                    <span>☁️</span> 雲端同步
-                </button>
-                <button @click="exportToExcel" class="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors text-sm font-bold">
-                    <span>🐟</span> 匯出 Excel
-                </button>
+                <button @click="showCloudModal = true" class="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors text-sm font-bold"><span>☁️</span> 雲端同步</button>
+                <button @click="exportToExcel" class="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors text-sm font-bold"><span>🐟</span> 匯出匯入檔</button>
             </div>
         </div>
 
@@ -194,15 +187,15 @@
                 </div>
                 <div class="flex flex-col gap-4">
                     <div class="bg-white p-4 rounded-2xl shadow-sm border-2 border-orange-100 relative overflow-hidden">
-                        <div class="absolute top-0 right-0 bg-orange-200 text-orange-800 text-xs px-3 py-1 rounded-bl-xl font-bold">⭐ 八字箴言</div>
+                        <div class="absolute top-0 right-0 bg-slate-600 text-white text-xs px-3 py-1 rounded-bl-xl font-bold">學籍卡箴言 (嚴謹)</div>
                         <div class="text-center py-2 flex items-center justify-center min-h-[3rem]">
-                            <div v-if="currentStudent.motto" class="text-2xl font-bold text-orange-600 tracking-widest font-serif">{{ currentStudent.motto }}</div>
-                            <div v-else class="text-slate-300 text-sm flex items-center gap-2"><span>🐾</span> 等待貓貓踩出箴言...</div>
+                            <div v-if="currentStudent.motto" class="text-2xl font-bold text-slate-700 tracking-widest font-serif">{{ currentStudent.motto }}</div>
+                            <div v-else class="text-slate-300 text-sm flex items-center gap-2"><span>⚖️</span> 等待生成嚴謹評語...</div>
                         </div>
                     </div>
                     <div class="flex-1 flex flex-col bg-white rounded-2xl shadow-lg border border-orange-100 overflow-hidden relative ring-1 ring-orange-50">
-                        <div class="p-3 bg-gradient-to-r from-orange-50 to-white border-b border-orange-100 flex justify-between items-center"><h3 class="font-bold text-orange-800 flex items-center gap-2"><span>✨</span> 暖心評語</h3><button v-if="currentStudent.polished_comment" @click="copyResult" class="text-xs text-orange-600 font-bold hover:bg-orange-100 px-2 py-1 rounded transition">複製</button></div>
-                        <textarea v-model="currentStudent.polished_comment" class="flex-1 w-full p-6 resize-none focus:outline-none text-slate-800 leading-relaxed bg-white" placeholder="貓貓生成的優美評語將顯示於此..."></textarea>
+                        <div class="p-3 bg-gradient-to-r from-orange-50 to-white border-b border-orange-100 flex justify-between items-center"><h3 class="font-bold text-orange-800 flex items-center gap-2"><span>✨</span> 成績單評語 (暖心)</h3><button v-if="currentStudent.polished_comment" @click="copyResult" class="text-xs text-orange-600 font-bold hover:bg-orange-100 px-2 py-1 rounded transition">複製</button></div>
+                        <textarea v-model="currentStudent.polished_comment" class="flex-1 w-full p-6 resize-none focus:outline-none text-slate-800 leading-relaxed bg-white" placeholder="貓貓生成的暖心評語將顯示於此..."></textarea>
                         <div class="absolute bottom-6 right-6">
                             <button @click="generateComment" :disabled="isGenerating || !apiKey" class="flex items-center justify-center gap-2 px-6 py-3 rounded-full shadow-lg transition-all transform hover:scale-105 disabled:opacity-80 disabled:cursor-not-allowed disabled:transform-none text-white font-bold text-lg" :class="!apiKey ? 'bg-slate-400' : 'bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600'">
                                 <span v-if="!apiKey">🚫 缺罐罐 (Key)</span><span v-else-if="isGenerating">🐾 貓貓思考中...</span><span v-else>🐾 貓貓幫你寫</span>
@@ -224,13 +217,15 @@
 
     createApp({
         setup() {
-            // V5.0 新增：雲端同步狀態
+            // V5.1 新增：年級與班級欄位
+            const newGrade = ref('');
+            const newClassNum = ref('');
+
+            // 既有狀態
             const showCloudModal = ref(false);
             const gasUrl = ref('');
             const isSyncing = ref(false);
             const syncStatus = ref('');
-
-            // V4.0 既有狀態
             const apiKey = ref('');
             const isConfigLoaded = ref(false);
             const isGenerating = ref(false);
@@ -257,13 +252,13 @@
             
             // Computed
             const currentTags = computed(() => tagsDB[selectedSubject.value] || tagsDB['一般導師']);
-            const currentClassData = computed(() => db.classes[db.activeClassId] || { name: '未知班級', students: [] });
-            const currentClassName = computed(() => currentClassData.value.name);
-            const students = computed(() => currentClassData.value.students);
+            const currentClassData = computed(() => db.classes[db.activeClassId] || { name: '未知班級', students: [], grade: '', classNum: '' });
             const filteredStudents = computed(() => {
-                if (!searchQuery.value) return students.value.map((s, i) => ({...s, originalIndex: i}));
-                return students.value.map((s, i) => ({...s, originalIndex: i})).filter(s => s.id.includes(searchQuery.value) || s.name.includes(searchQuery.value));
+                const students = currentClassData.value.students || [];
+                if (!searchQuery.value) return students.map((s, i) => ({...s, originalIndex: i}));
+                return students.map((s, i) => ({...s, originalIndex: i})).filter(s => s.id.includes(searchQuery.value) || s.name.includes(searchQuery.value));
             });
+            const students = computed(() => currentClassData.value.students || []);
             const currentStudent = computed(() => currentIdx.value !== -1 ? students.value[currentIdx.value] : null);
 
             onMounted(() => {
@@ -280,9 +275,6 @@
                 const savedDB = localStorage.getItem('gemini_comments_v4_db');
                 if (savedDB) Object.assign(db, JSON.parse(savedDB));
                 else {
-                    const defaultClassId = 'class_' + Date.now();
-                    db.activeClassId = defaultClassId;
-                    db.classes[defaultClassId] = { name: '預設班級', students: [] };
                     showClassManager.value = true;
                 }
             });
@@ -291,100 +283,107 @@
             watch(apiKey, (newVal) => { if (!isConfigLoaded.value) localStorage.setItem('gemini_api_key', newVal); });
             watch(gasUrl, (newVal) => localStorage.setItem('gemini_gas_url', newVal));
 
-            // Methods: Cloud Sync (V5 Core)
+            // Cloud Sync
             const uploadToCloud = async () => {
-                isSyncing.value = true;
-                syncStatus.value = '☁️ 貓貓正在努力上傳...';
+                isSyncing.value = true; syncStatus.value = '☁️ 貓貓正在努力上傳...';
                 try {
-                    // 使用 no-cors 模式會導致無法讀取回應，但 GAS 仍會執行
-                    // 為了確認成功，我們通常建議後端回傳正確的 CORS 標頭，這裡使用標準 fetch
-                    const response = await fetch(gasUrl.value, {
-                        method: 'POST',
-                        body: JSON.stringify(db)
-                    });
-                    
+                    const response = await fetch(gasUrl.value, { method: 'POST', body: JSON.stringify(db) });
                     const res = await response.json();
-                    if (res.result === 'success') {
-                        syncStatus.value = `✅ 上傳成功！(${new Date().toLocaleTimeString()})`;
-                    } else {
-                        throw new Error(res.error || '未知錯誤');
-                    }
-                } catch (e) {
-                    syncStatus.value = '❌ 上傳失敗：請檢查網址或網路。\n' + e.message;
-                } finally {
-                    isSyncing.value = false;
-                }
+                    if (res.result === 'success') syncStatus.value = `✅ 上傳成功！(${new Date().toLocaleTimeString()})`;
+                    else throw new Error(res.error);
+                } catch (e) { syncStatus.value = '❌ 上傳失敗：' + e.message; } finally { isSyncing.value = false; }
             };
-
             const downloadFromCloud = async () => {
-                if (!confirm('確定要從雲端下載？這將會覆蓋您目前的本機資料！')) return;
-                isSyncing.value = true;
-                syncStatus.value = '☁️ 正在從貓窩搬運資料...';
+                if (!confirm('覆蓋本機資料？')) return;
+                isSyncing.value = true; syncStatus.value = '☁️ 正在搬運資料...';
                 try {
                     const response = await fetch(gasUrl.value);
                     const cloudData = await response.json();
-                    
-                    if (cloudData && cloudData.classes) {
-                        Object.assign(db, cloudData); // 覆蓋本地 DB
-                        syncStatus.value = `✅ 下載還原成功！(${new Date().toLocaleTimeString()})`;
-                        currentIdx.value = -1; // 重置選擇
-                        showClassManager.value = true; // 讓使用者看到新資料
-                    } else {
-                        throw new Error('雲端資料是空的，或是格式不對');
-                    }
-                } catch (e) {
-                    syncStatus.value = '❌ 下載失敗：' + e.message;
-                } finally {
-                    isSyncing.value = false;
-                }
+                    if (cloudData && cloudData.classes) { Object.assign(db, cloudData); syncStatus.value = `✅ 還原成功！`; currentIdx.value = -1; showClassManager.value = true; }
+                    else throw new Error('資料錯誤');
+                } catch (e) { syncStatus.value = '❌ 下載失敗：' + e.message; } finally { isSyncing.value = false; }
             };
 
-            // Existing Methods
+            // Class Management with Grade/ClassNum
             const createNewClass = () => {
-                if (!newClassName.value.trim()) return;
+                if (!newGrade.value || !newClassNum.value) { alert('請輸入年級與班級數字'); return; }
                 const newId = 'class_' + Date.now();
                 const newStudents = Array.from({length: newClassCount.value}, (_, i) => ({
                     id: String(i+1).padStart(2,'0'), name:'', raw_comment:'', polished_comment:'', motto:''
                 }));
-                db.classes[newId] = { name: newClassName.value, students: newStudents };
-                switchClass(newId); newClassName.value = '';
+                db.classes[newId] = { 
+                    name: newClassName.value || `${newGrade.value}年${newClassNum.value}班`, 
+                    grade: String(newGrade.value),
+                    classNum: String(newClassNum.value),
+                    students: newStudents 
+                };
+                switchClass(newId);
+                newClassName.value = ''; newGrade.value = ''; newClassNum.value = '';
             };
             const switchClass = (id) => { db.activeClassId = id; currentIdx.value = -1; };
-            const deleteClass = (id) => {
-                if (Object.keys(db.classes).length <= 1) return;
-                if (confirm('確定刪除此班級？')) {
-                    delete db.classes[id];
-                    if (db.activeClassId === id) { db.activeClassId = Object.keys(db.classes)[0]; currentIdx.value = -1; }
-                }
-            };
+            const deleteClass = (id) => { if (Object.keys(db.classes).length <= 1) return; if(confirm('刪除？')) { delete db.classes[id]; if (db.activeClassId === id) { db.activeClassId = Object.keys(db.classes)[0]; currentIdx.value = -1; } } };
+            
+            // Excel Import
             const handleImportExcel = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
+                const file = e.target.files[0]; if (!file) return;
                 const reader = new FileReader();
                 reader.onload = (evt) => {
                     const wb = XLSX.read(evt.target.result, { type: 'binary' });
                     const ws = wb.Sheets[wb.SheetNames[0]];
                     const data = XLSX.utils.sheet_to_json(ws);
+                    // 嘗試從檔名或內容猜測年級班級 (這裡簡化，請使用者自行修改)
                     const importedStudents = data.map(row => ({
                         id: row['座號'] ? String(row['座號']).padStart(2, '0') : '00',
-                        name: row['姓名'] || '', motto: row['八字箴言'] || '',
-                        polished_comment: row['期末評語'] || '', raw_comment: row['原始紀錄'] || ''
+                        name: row['姓名'] || '', 
+                        motto: row['學籍卡導師評語'] || row['八字箴言'] || '',
+                        polished_comment: row['學期成績單導師評語'] || row['期末評語'] || '', 
+                        raw_comment: ''
                     }));
                     const newId = 'class_import_' + Date.now();
-                    db.classes[newId] = { name: file.name.replace(/\.[^/.]+$/, ""), students: importedStudents };
+                    db.classes[newId] = { name: file.name.replace(/\.[^/.]+$/, ""), grade: '', classNum: '', students: importedStudents };
                     switchClass(newId); showClassManager.value = false;
+                    alert('匯入成功！請記得去設定該班級的「年級」與「班序」以便正確匯出。');
                 };
                 reader.readAsBinaryString(file); e.target.value = '';
             };
-            const resetCurrentClass = () => { if(confirm('清空本班？')) { db.classes[db.activeClassId].students = []; currentIdx.value = -1; } };
+            
+            const resetCurrentClass = () => { if(confirm('清空？')) { db.classes[db.activeClassId].students = []; currentIdx.value = -1; } };
             const selectStudent = (index) => currentIdx.value = index;
             const addTag = (tag) => { if (currentStudent.value) currentStudent.value.raw_comment += (currentStudent.value.raw_comment ? '、' : '') + tag; };
+
+            // V5.1 AI Logic: Dual Tone
             const generateComment = async () => {
                 if (!apiKey.value) { alert('請輸入 Key'); return; }
                 if (!currentStudent.value.name) { alert('請輸入姓名'); return; }
                 if (!currentStudent.value.raw_comment) { alert('請輸入紀錄'); return; }
                 isGenerating.value = true; currentStudent.value.polished_comment = "🐾 貓貓思考中...";
-                const prompt = `角色：台灣國小「${selectedSubject.value}」老師。任務：為學生「${currentStudent.value.name}」撰寫期末評語與學籍卡八字箴言。格式：JSON output {"comment": "...", "motto": "..."}。規則：主詞「${currentStudent.value.name}」。字數70-80字。語氣溫暖。Motto為兩個四字成語。觀察紀錄：${currentStudent.value.raw_comment}`;
+                
+                const prompt = `
+                    角色：台灣國小「${selectedSubject.value}」老師。
+                    任務：為學生「${currentStudent.value.name}」撰寫兩份評語。
+                    
+                    觀察紀錄：${currentStudent.value.raw_comment}
+                    
+                    請嚴格按照以下 JSON 格式輸出：
+                    {
+                        "comment": "學期成績單評語 (暖心)",
+                        "motto": "學籍卡八字箴言 (嚴謹)"
+                    }
+
+                    規則1 (comment - 給家長)：
+                    - 字數 70-80 字。
+                    - 語氣溫暖肯定，融合 SEL 成長型思維。
+                    - 即使有缺點，也要用「期許」的方式表達。
+
+                    規則2 (motto - 學籍卡紀錄)：
+                    - 格式：必須是兩個四字詞語，中間用全形逗號隔開 (例如：品學兼優，熱心助人)。
+                    - 語氣：中立、客觀、嚴格。真實反映觀察紀錄。
+                    - 判斷邏輯：
+                      A. 若觀察紀錄全為優點 -> 給予「兩好」 (如：積極進取，樂於助人)。
+                      B. 若觀察紀錄好壞參半 -> 給予「一好一壞」 (如：活潑好動，需守秩序)。
+                      C. 若觀察紀錄多為缺點 -> 給予「兩壞/提醒」 (如：加強專注，改進常規)。
+                `;
+                
                 let success = false;
                 for (const model of MODEL_CANDIDATES) {
                     try {
@@ -395,7 +394,8 @@
                         if (data.candidates) {
                             let text = data.candidates[0].content.parts[0].text.replace(/```json/g, '').replace(/```/g, '').trim();
                             const result = JSON.parse(text);
-                            currentStudent.value.polished_comment = result.comment; currentStudent.value.motto = result.motto;
+                            currentStudent.value.polished_comment = result.comment; 
+                            currentStudent.value.motto = result.motto;
                             success = true; break;
                         }
                     } catch (e) {}
@@ -403,16 +403,38 @@
                 if (!success) alert('生成失敗');
                 isGenerating.value = false;
             };
+
+            // V5.1 Export Logic: Strict Administrative Format
             const exportToExcel = () => {
-                const ws = XLSX.utils.json_to_sheet(students.value.map(s => ({ '座號': s.id, '姓名': s.name, '八字箴言': s.motto, '期末評語': s.polished_comment, '原始紀錄': s.raw_comment })));
-                const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "評語表");
-                XLSX.writeFile(wb, `${currentClassName.value}_${selectedSubject.value}.xlsx`);
+                const cls = currentClassData.value;
+                const grade = cls.grade || '未設定';
+                const classNum = cls.classNum || '未設定';
+
+                // Map data to strict columns
+                const exportData = students.value.map(s => ({ 
+                    '年級': grade,
+                    '班級': classNum,
+                    '座號': s.id, // 假設 id 就是座號字串
+                    '姓名': s.name, 
+                    '學期成績單導師評語': s.polished_comment,
+                    '學籍卡導師評語': s.motto
+                }));
+
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                const wb = XLSX.utils.book_new(); 
+                XLSX.utils.book_append_sheet(wb, ws, "日常表現與導師評語");
+                
+                // Filename: 日常行為表現與導師評語匯入檔(班級).xlsx
+                const filename = `日常行為表現與導師評語匯入檔(${grade}0${classNum}).xlsx`;
+                XLSX.writeFile(wb, filename);
             };
+            
             const copyResult = () => navigator.clipboard.writeText(currentStudent.value.polished_comment);
 
             return { 
                 apiKey, isConfigLoaded, students, currentIdx, currentStudent, isGenerating, searchQuery, filteredStudents, selectedSubject, currentTags, 
-                db, showClassManager, newClassName, newClassCount, currentClassName, showCloudModal, gasUrl, isSyncing, syncStatus,
+                db, showClassManager, newClassName, newClassCount, currentClassData, showCloudModal, gasUrl, isSyncing, syncStatus,
+                newGrade, newClassNum, // V5.1 new refs
                 createNewClass, switchClass, deleteClass, handleImportExcel, resetCurrentClass, selectStudent, addTag, generateComment, exportToExcel, copyResult, uploadToCloud, downloadFromCloud
             };
         }

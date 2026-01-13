@@ -1,5 +1,5 @@
 // config.js
 window.APP_CONFIG = {
-    // 請將您的 Gemini API Key 填入下方引號中
-    GEMINI_API_KEY: "在此填入您的 API Key"
-};
+       GEMINI_API_KEY: "在此貼上您的_AIza_開頭金鑰",
+       GAS_URL: "在此貼上您的_Google_Script_網址"
+   };
