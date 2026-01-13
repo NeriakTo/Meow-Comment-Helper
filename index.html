@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>喵嗚評語助手 V5.1 (行政匯入版)</title>
+    <title>喵嗚評語助手 V5.1</title>
     <script src="config.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -69,7 +69,7 @@
                     <div class="border-t border-slate-100 my-4"></div>
                     
                     <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <h3 class="font-bold text-slate-600 mb-3">🆕 建立新班級 (行政匯入用)</h3>
+                        <h3 class="font-bold text-slate-600 mb-3">🆕 建立新班級</h3>
                         <div class="grid grid-cols-2 gap-3 mb-3">
                             <div>
                                 <label class="text-xs text-slate-400 block mb-1">年級 (數字)</label>
@@ -92,7 +92,7 @@
                     </div>
                     
                     <div class="mt-4 bg-blue-50 p-4 rounded-xl border border-blue-100 relative overflow-hidden group">
-                        <h3 class="font-bold text-blue-800 mb-2">📂 匯入舊 Excel (時光機)</h3>
+                        <h3 class="font-bold text-blue-800 mb-2">📂 匯入舊 Excel</h3>
                         <label class="block w-full bg-white border border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white text-center py-2 rounded-lg cursor-pointer transition text-sm font-bold shadow-sm">選擇檔案匯入<input type="file" accept=".xlsx, .xls" class="hidden" @change="handleImportExcel"></label>
                     </div>
                 </div>
@@ -323,7 +323,7 @@
             const switchClass = (id) => { db.activeClassId = id; currentIdx.value = -1; };
             const deleteClass = (id) => { if (Object.keys(db.classes).length <= 1) return; if(confirm('刪除？')) { delete db.classes[id]; if (db.activeClassId === id) { db.activeClassId = Object.keys(db.classes)[0]; currentIdx.value = -1; } } };
             
-            // Excel Import
+            // V5.1 Fixed Import Logic: 支援自動辨識年級/班級與座號補零
             const handleImportExcel = (e) => {
                 const file = e.target.files[0]; if (!file) return;
                 const reader = new FileReader();
@@ -331,18 +331,55 @@
                     const wb = XLSX.read(evt.target.result, { type: 'binary' });
                     const ws = wb.Sheets[wb.SheetNames[0]];
                     const data = XLSX.utils.sheet_to_json(ws);
-                    // 嘗試從檔名或內容猜測年級班級 (這裡簡化，請使用者自行修改)
+                    
+                    // 1. 偵測年級與班級資訊 (嘗試從第一筆資料抓取，假設整份 Excel 為同一班)
+                    let detectedGrade = '';
+                    let detectedClassNum = '';
+                    if (data.length > 0) {
+                        // 轉為字串以確保相容性
+                        if (data[0]['年級']) detectedGrade = String(data[0]['年級']);
+                        if (data[0]['班級']) detectedClassNum = String(data[0]['班級']);
+                    }
+
                     const importedStudents = data.map(row => ({
+                        // 核心修正：匯入時將數字座號 (1) 轉回系統標準格式 ("01")
                         id: row['座號'] ? String(row['座號']).padStart(2, '0') : '00',
+                        
                         name: row['姓名'] || '', 
+                        
+                        // 相容多種版本欄位名稱 (V5.1 新版 / V4 舊版)
                         motto: row['學籍卡導師評語'] || row['八字箴言'] || '',
                         polished_comment: row['學期成績單導師評語'] || row['期末評語'] || '', 
-                        raw_comment: ''
+                        
+                        // 若 Excel 中沒有原始紀錄 (通常是行政存檔)，則留空，不影響評語顯示
+                        raw_comment: row['原始紀錄'] || '' 
                     }));
+                    
                     const newId = 'class_import_' + Date.now();
-                    db.classes[newId] = { name: file.name.replace(/\.[^/.]+$/, ""), grade: '', classNum: '', students: importedStudents };
-                    switchClass(newId); showClassManager.value = false;
-                    alert('匯入成功！請記得去設定該班級的「年級」與「班序」以便正確匯出。');
+                    
+                    // 決定班級名稱：如果有抓到年級資訊，就直接用「X年X班」命名
+                    let className = file.name.replace(/\.[^/.]+$/, "");
+                    if (detectedGrade && detectedClassNum) {
+                        className = `${detectedGrade}年${detectedClassNum}班 (匯入)`;
+                    }
+
+                    // 寫入資料庫
+                    db.classes[newId] = { 
+                        name: className,
+                        grade: detectedGrade, 
+                        classNum: detectedClassNum, 
+                        students: importedStudents 
+                    };
+                    
+                    switchClass(newId); 
+                    showClassManager.value = false;
+                    
+                    // 根據偵測結果給予不同提示
+                    if (detectedGrade && detectedClassNum) {
+                        alert(`匯入成功！已自動辨識為 ${detectedGrade} 年 ${detectedClassNum} 班。`);
+                    } else {
+                        alert('匯入成功！此檔案未包含年級資訊（可能是舊版格式），請記得手動設定年級與班序。');
+                    }
                 };
                 reader.readAsBinaryString(file); e.target.value = '';
             };
@@ -404,7 +441,7 @@
                 isGenerating.value = false;
             };
 
-            // V5.1 Export Logic: Strict Administrative Format
+            // V5.1 Export Logic: Strict Administrative Format (修正座號去零)
             const exportToExcel = () => {
                 const cls = currentClassData.value;
                 const grade = cls.grade || '未設定';
@@ -414,7 +451,7 @@
                 const exportData = students.value.map(s => ({ 
                     '年級': grade,
                     '班級': classNum,
-                    '座號': s.id, // 假設 id 就是座號字串
+                    '座號': parseInt(s.id, 10), // 🔥 修改處：使用 parseInt 將 "01" 轉為數字 1
                     '姓名': s.name, 
                     '學期成績單導師評語': s.polished_comment,
                     '學籍卡導師評語': s.motto
