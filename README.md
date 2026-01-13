@@ -5,8 +5,9 @@
 
 ![Version](https://img.shields.io/badge/version-5.1-purple)
 ![Tech](https://img.shields.io/badge/Vue.js-3.0-green)
+![AI](https://img.shields.io/badge/Gemini-2.0-blue)
 ![Backend](https://img.shields.io/badge/Google_Apps_Script-BYOB-orange)
-![Export](https://img.shields.io/badge/Excel-Strict_Format-blue)
+![Export](https://img.shields.io/badge/Excel-Strict_Format-darkblue)
 
 ## 📖 專案概述 (Overview)
 本系統為基於 Web 的單頁應用程式 (SPA)，旨在協助導師利用生成式 AI (Gemini)，將口語觀察紀錄轉化為教育專業評語及八字箴言。**V5.1 版本針對學務行政需求進行優化**，導入 BYOB 架構保障隱私，並能產出符合學務系統匯入標準的 Excel 檔案。
