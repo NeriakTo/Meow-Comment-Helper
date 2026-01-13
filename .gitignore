@@ -1,0 +1,26 @@
+# --- 資安防護 (最重要) ---
+# 忽略含有真實 Key 的設定檔
+config.js
+
+# --- 作業系統產生的雜檔 ---
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- 編輯器設定檔 (不需要上傳) ---
+# VS Code / Cursor
+.vscode/
+*.code-workspace
+
+# 其他常見編輯器
+.idea/
+
+# --- 備份與 Log ---
+*.log
+*.bak
