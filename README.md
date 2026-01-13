@@ -1,27 +1,30 @@
-# 🐱 喵嗚評語助手 (Meow Comment Helper) V5.1
+# 🐱 喵嗚評語助手 (Meow Comment Helper) V5.2
 
-> **行政匯入版**
-> 專為國小導師設計的 AI 輔助評語撰寫系統，支援「校務系統匯入格式」與「Google 試算表資料雲端同步」。
+> **全平台行動版 (Mobile Ready Edition)**
+> 專為國小導師設計的 AI 輔助評語撰寫系統，支援手機、平板、電腦跨裝置操作，隨時隨地都能寫評語！
 
-![Version](https://img.shields.io/badge/version-5.1-purple)
+![Version](https://img.shields.io/badge/version-5.2-orange)
 ![Tech](https://img.shields.io/badge/Vue.js-3.0-green)
+![UI](https://img.shields.io/badge/UI-Responsive-ff69b4)
 ![AI](https://img.shields.io/badge/Gemini-2.0-blue)
 ![Backend](https://img.shields.io/badge/Google_Apps_Script-BYOB-orange)
 ![Export](https://img.shields.io/badge/Excel-Strict_Format-darkblue)
 
 ## 📖 專案概述 (Overview)
-本系統為基於 Web 的單頁應用程式 (SPA)，旨在協助導師利用生成式 AI (Gemini)，將口語觀察紀錄轉化為教育專業評語及八字箴言。**V5.1 版本針對學務行政需求進行優化**，導入 BYOB 架構保障隱私，並能產出符合學務系統匯入標準的 Excel 檔案。
+本系統為基於 Web 的單頁應用程式 (SPA)，旨在協助導師利用生成式 AI (Gemini)，將口語觀察紀錄轉化為教育專業評語。**V5.2 版本導入 RWD 響應式設計**，無論是在捷運上用手機、沙發上用平板，或是學校電腦桌前，都能享有最佳化的操作體驗。
 
-## ✨ V5.1 核心功能 (Features)
-* **📊 學務系統格式匯出 (New)**：
+## ✨ V5.2 核心功能 (Features)
+* **📱 RWD 行動支援 (New)**：
+  * **漢堡選單**：手機版自動收合側邊欄，釋放螢幕空間。
+  * **直覺堆疊**：手機版採垂直佈局，操作動線（輸入 -> 生成 -> 複製）更順手。
+  * **懸浮按鈕**：新增「幫我寫」懸浮按鈕 (FAB)，單手也能輕鬆操作。
+* **📊 學務系統格式匯出**：
   * 嚴格對應匯入欄位：`年級`、`班級`、`座號`、`姓名`、`成績單評語`、`學籍卡箴言`。
-  * 自動產生符合規定的檔名，如 `日常行為表現與導師評語匯入檔(302).xlsx`。
-* **⚖️ 雙重語氣引擎 (New)**：
+  * 自動產生符合規定的檔名，如 `日常行為表現與導師評語匯入檔(407).xlsx`。
+* **⚖️ 雙重語氣引擎**：
   * **成績單評語**：維持 70-80 字的暖心、正向風格 (給家長)。
   * **八字箴言**：依據真實觀察，給予「兩好」、「一好一壞」或「兩壞」的中立嚴謹評價 (給校方)。
 * **☁️ 雲端同步**：一鍵將班級資料備份至 Google 雲端硬碟，跨裝置無縫接軌。
-* **🔒 資料自主**：後端程式碼透明，資料儲存在您自己的 Google 帳號中。
-* **🐱 療癒貓咪 UI**：全介面貓化設計，讓期末行政工作不再枯燥。
 
 ---
 
@@ -172,7 +175,8 @@ V5.0 採用 **Client-Serverless + BYOB (Bring Your Own Backend)** 架構。前�
 ---
 
 ## 📝 版本歷程 (Changelog)
-* **V5.1 (2026-01-13)**：新增學務系統匯入格式支援、雙重語氣生成引擎 (暖心/嚴謹)、精準班級設定。
+* **V5.2 (2026-01-13)**：新增 RWD 響應式網頁設計，支援手機/平板介面，優化漢堡選單與操作動線。
+* **V5.1**：新增校務系統匯入格式支援、雙重語氣生成引擎 (暖心/嚴謹)、精準班級設定。
 * **V5.0**：新增 Google Sheets 雲端同步功能 (BYOB 架構)。
 * **V4.0**：新增多班級管理、Excel 逆向匯入。
 * **V3.0**：加入姓名綁定、八字箴言生成。

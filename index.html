@@ -2,8 +2,8 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>喵嗚評語助手 V5.1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>喵嗚評語助手 V5.2</title>
     <script src="config.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -17,20 +17,27 @@
         .input-focus:focus { transform: scale(1.01); }
         .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
         .fade-enter-from, .fade-leave-to { opacity: 0; }
+        /* 手機版側邊欄過渡動畫 */
+        .slide-enter-active, .slide-leave-active { transition: transform 0.3s ease; }
+        .slide-enter-from, .slide-leave-to { transform: translateX(-100%); }
     </style>
 </head>
-<body class="bg-orange-50 h-screen overflow-hidden text-slate-800">
+<body class="bg-orange-50 h-[100dvh] overflow-hidden text-slate-800">
 
-<div id="app" class="flex h-full max-w-[1920px] mx-auto shadow-2xl relative">
+<div id="app" class="flex h-full w-full relative">
+
+    <transition name="fade">
+        <div v-if="isSidebarOpen" @click="isSidebarOpen = false" class="fixed inset-0 bg-black/50 z-20 md:hidden"></div>
+    </transition>
 
     <transition name="fade">
         <div v-if="showCloudModal" class="absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full border-4 border-blue-200 overflow-hidden flex flex-col">
-                <div class="bg-blue-100 p-6 flex justify-between items-center">
-                    <h2 class="text-2xl font-bold text-blue-800 flex items-center gap-2"><span>☁️</span> 貓貓雲端同步</h2>
+            <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full border-4 border-blue-200 overflow-hidden flex flex-col max-h-[90vh] overflow-y-auto">
+                <div class="bg-blue-100 p-4 md:p-6 flex justify-between items-center">
+                    <h2 class="text-xl md:text-2xl font-bold text-blue-800 flex items-center gap-2"><span>☁️</span> 貓貓雲端同步</h2>
                     <button @click="showCloudModal = false" class="text-slate-400 hover:text-slate-600 text-2xl">✕</button>
                 </div>
-                <div class="p-8 flex flex-col gap-6">
+                <div class="p-6 flex flex-col gap-6">
                     <div class="space-y-2">
                         <label class="text-sm font-bold text-slate-500 uppercase">您的 Google Script 網址 (GAS URL)</label>
                         <input type="text" v-model="gasUrl" placeholder="請貼上 https://script.google.com/.../exec" class="w-full p-3 border rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-blue-300 outline-none transition-all" :class="gasUrl ? 'border-blue-300' : 'border-red-300'">
@@ -46,24 +53,24 @@
     </transition>
 
     <transition name="fade">
-        <div v-if="showClassManager" class="absolute inset-0 z-50 bg-orange-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full border-4 border-orange-200 overflow-hidden flex flex-col max-h-[90vh]">
-                <div class="bg-orange-100 p-6 flex justify-between items-center">
-                    <h2 class="text-2xl font-bold text-orange-800 flex items-center gap-2"><span>🏡</span> 貓窩管理</h2>
+        <div v-if="showClassManager" class="absolute inset-0 z-50 bg-orange-900/50 backdrop-blur-sm flex items-center justify-center p-2 md:p-4">
+            <div class="bg-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-2xl border-4 border-orange-200 overflow-hidden flex flex-col max-h-[90vh]">
+                <div class="bg-orange-100 p-4 md:p-6 flex justify-between items-center">
+                    <h2 class="text-xl md:text-2xl font-bold text-orange-800 flex items-center gap-2"><span>🏡</span> 貓窩管理</h2>
                     <button @click="showClassManager = false" class="text-slate-400 hover:text-slate-600 text-2xl">✕</button>
                 </div>
-                <div class="p-6 overflow-y-auto flex-1">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                <div class="p-4 md:p-6 overflow-y-auto flex-1">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
                         <div v-for="(cls, id) in db.classes" :key="id" @click="switchClass(id)"
                              class="p-4 rounded-xl border-2 cursor-pointer transition-all relative group"
                              :class="db.activeClassId === id ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200' : 'border-slate-100 hover:border-orange-300'">
                             <div class="font-bold text-lg text-slate-700">
                                 {{ cls.grade }} 年 {{ cls.classNum }} 班
-                                <span class="text-sm font-normal text-slate-500">({{ cls.name || '未命名' }})</span>
+                                <span class="text-sm font-normal text-slate-500 block md:inline">({{ cls.name || '未命名' }})</span>
                             </div>
                             <div class="text-xs text-slate-400 mt-1">{{ cls.students.length }} 隻小貓</div>
                             <div v-if="db.activeClassId === id" class="absolute top-2 right-2 text-orange-500 text-xs font-bold bg-white px-2 py-0.5 rounded-full border border-orange-200">當前</div>
-                            <button v-if="Object.keys(db.classes).length > 1" @click.stop="deleteClass(id)" class="absolute bottom-2 right-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1">🗑️</button>
+                            <button v-if="Object.keys(db.classes).length > 1" @click.stop="deleteClass(id)" class="absolute bottom-2 right-2 text-slate-300 hover:text-red-500 md:opacity-0 group-hover:opacity-100 transition-opacity p-1">🗑️</button>
                         </div>
                     </div>
                     <div class="border-t border-slate-100 my-4"></div>
@@ -71,24 +78,11 @@
                     <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
                         <h3 class="font-bold text-slate-600 mb-3">🆕 建立新班級</h3>
                         <div class="grid grid-cols-2 gap-3 mb-3">
-                            <div>
-                                <label class="text-xs text-slate-400 block mb-1">年級 (數字)</label>
-                                <input v-model="newGrade" type="number" min="1" max="6" placeholder="如: 4" class="w-full px-3 py-2 border rounded-lg text-sm text-center font-bold">
-                            </div>
-                            <div>
-                                <label class="text-xs text-slate-400 block mb-1">班序 (數字)</label>
-                                <input v-model="newClassNum" type="number" min="1" max="30" placeholder="如: 7" class="w-full px-3 py-2 border rounded-lg text-sm text-center font-bold">
-                            </div>
+                            <div><label class="text-xs text-slate-400 block mb-1">年級 (數字)</label><input v-model="newGrade" type="number" min="1" max="6" placeholder="如: 4" class="w-full px-3 py-2 border rounded-lg text-sm text-center font-bold"></div>
+                            <div><label class="text-xs text-slate-400 block mb-1">班序 (數字)</label><input v-model="newClassNum" type="number" min="1" max="30" placeholder="如: 7" class="w-full px-3 py-2 border rounded-lg text-sm text-center font-bold"></div>
                         </div>
-                        <div class="flex gap-2 items-center">
-                            <span class="text-xs text-slate-400">班級別名:</span>
-                            <input v-model="newClassName" type="text" placeholder="如: 114學年..." class="flex-1 px-3 py-2 border rounded-lg text-sm">
-                        </div>
-                        <div class="flex gap-2 items-center mt-3">
-                            <span class="text-xs text-slate-400">學生數:</span>
-                            <input v-model.number="newClassCount" type="number" min="1" max="50" class="w-16 px-2 py-1 border rounded-lg text-sm text-center">
-                            <button @click="createNewClass" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold py-2 rounded-lg transition">建立班級</button>
-                        </div>
+                        <div class="flex gap-2 items-center"><span class="text-xs text-slate-400 whitespace-nowrap">別名:</span><input v-model="newClassName" type="text" placeholder="選填" class="flex-1 px-3 py-2 border rounded-lg text-sm"></div>
+                        <div class="flex gap-2 items-center mt-3"><span class="text-xs text-slate-400 whitespace-nowrap">人數:</span><input v-model.number="newClassCount" type="number" min="1" max="50" class="w-16 px-2 py-1 border rounded-lg text-sm text-center"><button @click="createNewClass" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold py-2 rounded-lg transition">建立</button></div>
                     </div>
                     
                     <div class="mt-4 bg-blue-50 p-4 rounded-xl border border-blue-100 relative overflow-hidden group">
@@ -100,52 +94,69 @@
         </div>
     </transition>
     
-    <div class="w-80 bg-white border-r border-orange-100 flex flex-col z-10">
-        <div class="p-5 bg-orange-400 text-white shadow-md z-20 relative overflow-hidden">
+    <div class="fixed md:relative z-30 h-full w-80 bg-white border-r border-orange-100 flex flex-col transition-transform duration-300 ease-in-out transform"
+         :class="isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'">
+        
+        <div class="p-4 bg-orange-400 text-white shadow-md z-20 relative overflow-hidden shrink-0">
             <div class="relative z-10">
-                <div class="flex items-center justify-between mb-1 cursor-pointer hover:bg-orange-500/50 rounded p-1 -ml-1 transition" @click="showClassManager = true">
-                    <h1 class="text-lg font-bold tracking-wide flex items-center gap-1">
-                        <span>🏡</span> 
-                        <span v-if="currentClassData.grade">{{ currentClassData.grade }}年{{ currentClassData.classNum }}班</span>
-                        <span v-else>{{ currentClassData.name }}</span>
-                    </h1>
-                    <span class="text-xs bg-white/20 px-2 py-0.5 rounded text-white">切換 ▼</span>
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-1 cursor-pointer hover:bg-orange-500/50 rounded p-1 transition" @click="showClassManager = true">
+                        <h1 class="text-lg font-bold tracking-wide">
+                            <span v-if="currentClassData.grade">{{ currentClassData.grade }}年{{ currentClassData.classNum }}班</span>
+                            <span v-else>{{ currentClassData.name || '選擇班級' }}</span>
+                        </h1>
+                        <span class="text-xs bg-white/20 px-2 py-0.5 rounded text-white">▼</span>
+                    </div>
+                    <button @click="isSidebarOpen = false" class="md:hidden text-white/80 hover:text-white text-xl font-bold p-1">✕</button>
                 </div>
-                <div class="mt-3 relative">
-                    <input type="text" v-model="searchQuery" placeholder="搜尋小魚乾..." class="w-full pl-8 pr-3 py-1.5 text-slate-800 rounded-lg border-0 focus:ring-2 focus:ring-orange-200 shadow-sm text-sm placeholder-orange-300 bg-white/95">
+                <div class="relative">
+                    <input type="text" v-model="searchQuery" placeholder="搜尋姓名/座號..." class="w-full pl-8 pr-3 py-1.5 text-slate-800 rounded-lg border-0 focus:ring-2 focus:ring-orange-200 shadow-sm text-sm placeholder-orange-300 bg-white/95">
                     <span class="absolute left-2.5 top-1.5 text-orange-300 text-xs">🔍</span>
                 </div>
             </div>
-            <div class="absolute -right-4 -bottom-6 text-8xl opacity-10 rotate-12 select-none">🐱</div>
         </div>
+
         <div class="flex-1 overflow-y-auto p-3 space-y-2 no-scrollbar bg-orange-50/30">
-            <div v-for="(student, index) in filteredStudents" :key="student.id" @click="selectStudent(student.originalIndex)" class="group relative p-3 rounded-2xl cursor-pointer border transition-all duration-200 pr-8" :class="currentIdx === student.originalIndex ? 'bg-white border-orange-300 shadow-md ring-2 ring-orange-100' : 'bg-white/60 border-transparent hover:bg-white hover:border-orange-200'">
+            <div v-for="(student, index) in filteredStudents" :key="student.id" @click="selectStudent(student.originalIndex)" 
+                 class="group relative p-3 rounded-2xl cursor-pointer border transition-all duration-200 pr-8" 
+                 :class="currentIdx === student.originalIndex ? 'bg-white border-orange-300 shadow-md ring-2 ring-orange-100' : 'bg-white/60 border-transparent hover:bg-white hover:border-orange-200'">
                 <div class="flex flex-col">
                     <span class="text-xs font-mono text-slate-400 mb-0.5 flex items-center gap-1"><span class="text-[10px]">🐾</span> 座號 {{ student.id }}</span>
                     <div class="flex items-center gap-2">
                         <span v-if="student.name" class="font-bold text-slate-700 text-lg">{{ student.name }}</span>
-                        <span v-else class="text-slate-400 text-sm italic">(點擊輸入姓名)</span>
+                        <span v-else class="text-slate-400 text-sm italic">(點擊輸入)</span>
                         <span v-if="student.polished_comment" class="text-[10px] text-orange-600 font-bold bg-orange-100 px-2 py-0.5 rounded-full border border-orange-200">✔</span>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="p-2 border-t border-orange-100 text-xs text-slate-400 text-center bg-white flex justify-between px-4">
+        <div class="p-2 border-t border-orange-100 text-xs text-slate-400 text-center bg-white flex justify-between px-4 shrink-0 safe-area-bottom">
             <span>{{ students.length }} 隻小貓</span>
             <button @click="resetCurrentClass" class="text-red-300 hover:text-red-500 hover:underline">清空本班</button>
         </div>
     </div>
 
-    <div class="flex-1 flex flex-col h-full bg-white relative">
-        <div class="h-16 bg-white border-b border-orange-50 flex items-center justify-between px-8 shadow-sm z-10">
-            <div class="flex items-center gap-4">
+    <div class="flex-1 flex flex-col h-full bg-white relative w-full overflow-hidden">
+        <div class="bg-white border-b border-orange-50 flex flex-col md:flex-row items-start md:items-center justify-between p-3 md:px-8 shadow-sm z-10 gap-3 shrink-0">
+            
+            <div class="flex items-center w-full md:w-auto justify-between">
                 <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold uppercase" :class="apiKey ? 'text-emerald-600' : 'text-red-500'">{{ apiKey ? '罐罐鑰匙 (OK)' : '罐罐鑰匙 (未輸入)' }}</span>
-                    <input type="password" v-model="apiKey" :disabled="isConfigLoaded" placeholder="AIza..." class="bg-orange-50 border rounded-lg px-2 py-1 w-24 text-sm focus:w-64 transition-all focus:outline-none disabled:bg-slate-100 disabled:text-slate-400" :class="!apiKey ? 'border-red-300 ring-2 ring-red-100' : 'border-orange-200 focus:border-orange-400'">
+                    <button @click="isSidebarOpen = true" class="md:hidden p-2 -ml-2 text-slate-500 hover:bg-orange-50 rounded-lg">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold uppercase whitespace-nowrap" :class="apiKey ? 'text-emerald-600' : 'text-red-500'">{{ apiKey ? '🔑 OK' : '🔑 未輸入' }}</span>
+                        <input type="password" v-model="apiKey" :disabled="isConfigLoaded" placeholder="API Key..." class="bg-orange-50 border rounded-lg px-2 py-1 w-20 md:w-24 text-sm focus:w-64 transition-all focus:outline-none disabled:bg-slate-100" :class="!apiKey ? 'border-red-300' : 'border-orange-200'">
+                    </div>
                 </div>
-                <div class="flex items-center gap-2 border-l pl-4 border-slate-100">
-                    <span class="text-sm font-bold text-slate-600">領域：</span>
-                    <select v-model="selectedSubject" class="bg-orange-50 border border-orange-200 text-slate-700 text-sm rounded-lg focus:ring-orange-500 focus:border-orange-500 block p-1.5 font-bold cursor-pointer">
+                
+                <div v-if="currentStudent" class="md:hidden font-bold text-slate-700 truncate max-w-[100px]">{{ currentStudent.name }}</div>
+            </div>
+
+            <div class="flex items-center justify-between w-full md:w-auto gap-3 overflow-x-auto no-scrollbar">
+                <div class="flex items-center gap-2 md:border-l md:pl-4 border-slate-100 shrink-0">
+                    <span class="text-sm font-bold text-slate-600 hidden md:inline">領域：</span>
+                    <select v-model="selectedSubject" class="bg-orange-50 border border-orange-200 text-slate-700 text-sm rounded-lg focus:ring-orange-500 block p-1.5 font-bold cursor-pointer max-w-[120px]">
                         <option value="一般導師">導師 (班級經營)</option>
                         <option value="國語文">國語文</option>
                         <option value="數學">數學</option>
@@ -157,57 +168,68 @@
                         <option value="綜合活動">綜合</option>
                     </select>
                 </div>
-            </div>
-            <div class="flex gap-3">
-                <button @click="showCloudModal = true" class="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors text-sm font-bold"><span>☁️</span> 雲端同步</button>
-                <button @click="exportToExcel" class="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors text-sm font-bold"><span>🐟</span> 匯出匯入檔</button>
+                <div class="flex gap-2 shrink-0">
+                    <button @click="showCloudModal = true" class="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg shadow transition text-sm font-bold">☁️ <span class="hidden sm:inline">同步</span></button>
+                    <button @click="exportToExcel" class="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg shadow transition text-sm font-bold">🐟 <span class="hidden sm:inline">匯出</span></button>
+                </div>
             </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-6 md:p-8 bg-orange-50/30" v-if="currentStudent">
-            <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
-                <div class="flex flex-col gap-4">
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-orange-100 flex items-center gap-4 group hover:border-orange-300 transition-colors">
-                        <div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform select-none">🐱</div>
+        <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-orange-50/30" v-if="currentStudent">
+            <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8 pb-20 md:pb-0">
+                
+                <div class="flex flex-col gap-4 order-1">
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-orange-100 flex items-center gap-4">
+                        <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-orange-100 flex items-center justify-center text-xl md:text-2xl select-none">🐱</div>
                         <div class="flex-1">
                             <label class="text-xs font-bold text-slate-400 uppercase">學生姓名</label>
-                            <input type="text" v-model="currentStudent.name" placeholder="輸入名字..." class="w-full text-2xl font-bold text-slate-800 border-b border-transparent focus:border-orange-400 focus:outline-none input-focus placeholder-slate-200 bg-transparent">
+                            <input type="text" v-model="currentStudent.name" placeholder="輸入名字..." class="w-full text-xl md:text-2xl font-bold text-slate-800 border-b border-transparent focus:border-orange-400 focus:outline-none bg-transparent">
                         </div>
                     </div>
+                    
                     <div class="bg-white p-4 rounded-2xl shadow-sm border border-orange-100">
-                        <div class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-1"><span>🐾</span> 貓貓觀察標籤</div>
-                        <div class="flex flex-wrap gap-2">
-                            <button v-for="tag in currentTags" :key="tag" @click="addTag(tag)" class="px-3 py-1 text-sm bg-slate-50 hover:bg-orange-100 hover:text-orange-700 text-slate-600 rounded-full transition-colors border border-slate-100">{{ tag }}</button>
+                        <div class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-1"><span>🐾</span> 快速標籤</div>
+                        <div class="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                            <button v-for="tag in currentTags" :key="tag" @click="addTag(tag)" class="px-2 py-1 md:px-3 text-xs md:text-sm bg-slate-50 hover:bg-orange-100 hover:text-orange-700 text-slate-600 rounded-full border border-slate-100 transition-colors">{{ tag }}</button>
                         </div>
                     </div>
-                    <div class="flex-1 flex flex-col bg-white rounded-2xl shadow-sm border border-orange-100 overflow-hidden">
+
+                    <div class="flex-1 flex flex-col bg-white rounded-2xl shadow-sm border border-orange-100 overflow-hidden min-h-[200px]">
                         <div class="p-3 bg-orange-50/50 border-b border-orange-100 flex justify-between items-center"><h3 class="font-bold text-slate-700 flex items-center gap-2"><span>📝</span> 觀察紀錄</h3><button @click="currentStudent.raw_comment = ''" class="text-xs text-slate-400 hover:text-red-500">清空</button></div>
-                        <textarea v-model="currentStudent.raw_comment" class="flex-1 w-full p-5 resize-none focus:outline-none text-slate-700 leading-relaxed placeholder-slate-300 bg-transparent" placeholder="請輸入觀察紀錄，貓貓會幫你潤飾..."></textarea>
+                        <textarea v-model="currentStudent.raw_comment" class="flex-1 w-full p-4 resize-none focus:outline-none text-slate-700 leading-relaxed placeholder-slate-300 bg-transparent text-base" placeholder="請輸入觀察紀錄..."></textarea>
                     </div>
                 </div>
-                <div class="flex flex-col gap-4">
+
+                <div class="flex flex-col gap-4 order-2">
                     <div class="bg-white p-4 rounded-2xl shadow-sm border-2 border-orange-100 relative overflow-hidden">
-                        <div class="absolute top-0 right-0 bg-slate-600 text-white text-xs px-3 py-1 rounded-bl-xl font-bold">學籍卡箴言 (嚴謹)</div>
+                        <div class="absolute top-0 right-0 bg-slate-600 text-white text-[10px] md:text-xs px-2 py-1 rounded-bl-xl font-bold">學籍卡 (嚴謹)</div>
                         <div class="text-center py-2 flex items-center justify-center min-h-[3rem]">
-                            <div v-if="currentStudent.motto" class="text-2xl font-bold text-slate-700 tracking-widest font-serif">{{ currentStudent.motto }}</div>
-                            <div v-else class="text-slate-300 text-sm flex items-center gap-2"><span>⚖️</span> 等待生成嚴謹評語...</div>
+                            <div v-if="currentStudent.motto" class="text-xl md:text-2xl font-bold text-slate-700 tracking-widest font-serif">{{ currentStudent.motto }}</div>
+                            <div v-else class="text-slate-300 text-sm flex items-center gap-2"><span>⚖️</span> 等待生成...</div>
                         </div>
                     </div>
-                    <div class="flex-1 flex flex-col bg-white rounded-2xl shadow-lg border border-orange-100 overflow-hidden relative ring-1 ring-orange-50">
-                        <div class="p-3 bg-gradient-to-r from-orange-50 to-white border-b border-orange-100 flex justify-between items-center"><h3 class="font-bold text-orange-800 flex items-center gap-2"><span>✨</span> 成績單評語 (暖心)</h3><button v-if="currentStudent.polished_comment" @click="copyResult" class="text-xs text-orange-600 font-bold hover:bg-orange-100 px-2 py-1 rounded transition">複製</button></div>
-                        <textarea v-model="currentStudent.polished_comment" class="flex-1 w-full p-6 resize-none focus:outline-none text-slate-800 leading-relaxed bg-white" placeholder="貓貓生成的暖心評語將顯示於此..."></textarea>
-                        <div class="absolute bottom-6 right-6">
-                            <button @click="generateComment" :disabled="isGenerating || !apiKey" class="flex items-center justify-center gap-2 px-6 py-3 rounded-full shadow-lg transition-all transform hover:scale-105 disabled:opacity-80 disabled:cursor-not-allowed disabled:transform-none text-white font-bold text-lg" :class="!apiKey ? 'bg-slate-400' : 'bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600'">
-                                <span v-if="!apiKey">🚫 缺罐罐 (Key)</span><span v-else-if="isGenerating">🐾 貓貓思考中...</span><span v-else>🐾 貓貓幫你寫</span>
+
+                    <div class="flex-1 flex flex-col bg-white rounded-2xl shadow-lg border border-orange-100 overflow-hidden relative ring-1 ring-orange-50 min-h-[250px]">
+                        <div class="p-3 bg-gradient-to-r from-orange-50 to-white border-b border-orange-100 flex justify-between items-center"><h3 class="font-bold text-orange-800 flex items-center gap-2"><span>✨</span> 成績單 (暖心)</h3><button v-if="currentStudent.polished_comment" @click="copyResult" class="text-xs text-orange-600 font-bold hover:bg-orange-100 px-2 py-1 rounded transition">複製</button></div>
+                        <textarea v-model="currentStudent.polished_comment" class="flex-1 w-full p-4 md:p-6 resize-none focus:outline-none text-slate-800 leading-relaxed bg-white text-base" placeholder="貓貓生成的暖心評語將顯示於此..."></textarea>
+                        
+                        <div class="absolute bottom-4 right-4 md:bottom-6 md:right-6 z-10">
+                            <button @click="generateComment" :disabled="isGenerating || !apiKey" 
+                                    class="flex items-center justify-center gap-2 px-4 py-2 md:px-6 md:py-3 rounded-full shadow-xl transition-all transform active:scale-95 md:hover:scale-105 disabled:opacity-80 disabled:cursor-not-allowed disabled:transform-none text-white font-bold text-sm md:text-lg" 
+                                    :class="!apiKey ? 'bg-slate-400' : 'bg-gradient-to-r from-orange-400 to-amber-500'">
+                                <span v-if="!apiKey">🚫 缺 Key</span>
+                                <span v-else-if="isGenerating">🐾 思考中...</span>
+                                <span v-else>🐾 幫我寫</span>
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div v-else class="flex-1 flex flex-col items-center justify-center text-slate-300">
-            <div class="text-8xl mb-4 opacity-30 grayscale cursor-pointer hover:scale-110 transition" @click="showClassManager=true">😽</div>
-            <p class="text-xl font-medium text-slate-400">請先點擊左側小貓，或點上方切換班級</p>
+        
+        <div v-else class="flex-1 flex flex-col items-center justify-center text-slate-300 p-8 text-center">
+            <div class="text-6xl md:text-8xl mb-4 opacity-30 grayscale cursor-pointer hover:scale-110 transition" @click="isSidebarOpen = true">😽</div>
+            <p class="text-lg md:text-xl font-medium text-slate-400">點擊左上角選單<br>選擇一隻小貓吧！</p>
         </div>
     </div>
 </div>
@@ -217,11 +239,12 @@
 
     createApp({
         setup() {
-            // V5.1 新增：年級與班級欄位
+            // V5.2 RWD State
+            const isSidebarOpen = ref(false); // 控制手機側邊欄
+
+            // V5.1 State
             const newGrade = ref('');
             const newClassNum = ref('');
-
-            // 既有狀態
             const showCloudModal = ref(false);
             const gasUrl = ref('');
             const isSyncing = ref(false);
@@ -234,10 +257,10 @@
             const showClassManager = ref(false);
             const newClassName = ref('');
             const newClassCount = ref(30);
-            
             const db = reactive({ activeClassId: 'default', classes: {} });
             const currentIdx = ref(-1);
 
+            // ... (維持 V5.1 的 tagsDB, MODEL_CANDIDATES) ...
             const tagsDB = {
                 '一般導師': ['熱心助人', '負責盡職', '活潑外向', '人緣極佳', '沉默寡言', '專注力佳', '容易分心', '作業優良', '需加強整潔', '禮貌周到', '愛惜公物', '樂於分享'],
                 '國語文': ['字跡工整', '喜愛閱讀', '朗讀流暢', '語意表達佳', '成語運用豐富', '寫作具創意', '字音字形需加強'],
@@ -249,7 +272,7 @@
                 '社會': ['關懷環境', '具備國際觀', '尊重多元', '樂於討論', '具備公民素養']
             };
             const MODEL_CANDIDATES = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-flash-latest'];
-            
+
             // Computed
             const currentTags = computed(() => tagsDB[selectedSubject.value] || tagsDB['一般導師']);
             const currentClassData = computed(() => db.classes[db.activeClassId] || { name: '未知班級', students: [], grade: '', classNum: '' });
@@ -271,59 +294,56 @@
                     const savedGas = localStorage.getItem('gemini_gas_url');
                     if (savedGas) gasUrl.value = savedGas;
                 }
-
                 const savedDB = localStorage.getItem('gemini_comments_v4_db');
                 if (savedDB) Object.assign(db, JSON.parse(savedDB));
-                else {
-                    showClassManager.value = true;
-                }
+                else showClassManager.value = true;
             });
 
             watch(db, (newVal) => localStorage.setItem('gemini_comments_v4_db', JSON.stringify(newVal)), { deep: true });
             watch(apiKey, (newVal) => { if (!isConfigLoaded.value) localStorage.setItem('gemini_api_key', newVal); });
             watch(gasUrl, (newVal) => localStorage.setItem('gemini_gas_url', newVal));
 
-            // Cloud Sync
+            // Methods
+            const selectStudent = (index) => {
+                currentIdx.value = index;
+                isSidebarOpen.value = false; // 手機版：選擇學生後自動收起側邊欄
+            };
+
             const uploadToCloud = async () => {
-                isSyncing.value = true; syncStatus.value = '☁️ 貓貓正在努力上傳...';
+                isSyncing.value = true; syncStatus.value = '☁️ 上傳中...';
                 try {
                     const response = await fetch(gasUrl.value, { method: 'POST', body: JSON.stringify(db) });
                     const res = await response.json();
-                    if (res.result === 'success') syncStatus.value = `✅ 上傳成功！(${new Date().toLocaleTimeString()})`;
+                    if (res.result === 'success') syncStatus.value = `✅ 成功! (${new Date().toLocaleTimeString()})`;
                     else throw new Error(res.error);
-                } catch (e) { syncStatus.value = '❌ 上傳失敗：' + e.message; } finally { isSyncing.value = false; }
+                } catch (e) { syncStatus.value = '❌ 失敗:' + e.message; } finally { isSyncing.value = false; }
             };
             const downloadFromCloud = async () => {
                 if (!confirm('覆蓋本機資料？')) return;
-                isSyncing.value = true; syncStatus.value = '☁️ 正在搬運資料...';
+                isSyncing.value = true; syncStatus.value = '☁️ 下載中...';
                 try {
                     const response = await fetch(gasUrl.value);
                     const cloudData = await response.json();
                     if (cloudData && cloudData.classes) { Object.assign(db, cloudData); syncStatus.value = `✅ 還原成功！`; currentIdx.value = -1; showClassManager.value = true; }
                     else throw new Error('資料錯誤');
-                } catch (e) { syncStatus.value = '❌ 下載失敗：' + e.message; } finally { isSyncing.value = false; }
+                } catch (e) { syncStatus.value = '❌ 失敗:' + e.message; } finally { isSyncing.value = false; }
             };
 
-            // Class Management with Grade/ClassNum
             const createNewClass = () => {
-                if (!newGrade.value || !newClassNum.value) { alert('請輸入年級與班級數字'); return; }
+                if (!newGrade.value || !newClassNum.value) { alert('請輸入年級與班級'); return; }
                 const newId = 'class_' + Date.now();
                 const newStudents = Array.from({length: newClassCount.value}, (_, i) => ({
                     id: String(i+1).padStart(2,'0'), name:'', raw_comment:'', polished_comment:'', motto:''
                 }));
                 db.classes[newId] = { 
                     name: newClassName.value || `${newGrade.value}年${newClassNum.value}班`, 
-                    grade: String(newGrade.value),
-                    classNum: String(newClassNum.value),
-                    students: newStudents 
+                    grade: String(newGrade.value), classNum: String(newClassNum.value), students: newStudents 
                 };
-                switchClass(newId);
-                newClassName.value = ''; newGrade.value = ''; newClassNum.value = '';
+                switchClass(newId); newClassName.value = ''; newGrade.value = ''; newClassNum.value = '';
             };
-            const switchClass = (id) => { db.activeClassId = id; currentIdx.value = -1; };
+            const switchClass = (id) => { db.activeClassId = id; currentIdx.value = -1; isSidebarOpen.value = false; }; // 切換班級後關閉選單
             const deleteClass = (id) => { if (Object.keys(db.classes).length <= 1) return; if(confirm('刪除？')) { delete db.classes[id]; if (db.activeClassId === id) { db.activeClassId = Object.keys(db.classes)[0]; currentIdx.value = -1; } } };
             
-            // V5.1 Fixed Import Logic: 支援自動辨識年級/班級與座號補零
             const handleImportExcel = (e) => {
                 const file = e.target.files[0]; if (!file) return;
                 const reader = new FileReader();
@@ -331,96 +351,37 @@
                     const wb = XLSX.read(evt.target.result, { type: 'binary' });
                     const ws = wb.Sheets[wb.SheetNames[0]];
                     const data = XLSX.utils.sheet_to_json(ws);
-                    
-                    // 1. 偵測年級與班級資訊 (嘗試從第一筆資料抓取，假設整份 Excel 為同一班)
-                    let detectedGrade = '';
-                    let detectedClassNum = '';
+                    let detectedGrade = ''; let detectedClassNum = '';
                     if (data.length > 0) {
-                        // 轉為字串以確保相容性
                         if (data[0]['年級']) detectedGrade = String(data[0]['年級']);
                         if (data[0]['班級']) detectedClassNum = String(data[0]['班級']);
                     }
-
                     const importedStudents = data.map(row => ({
-                        // 核心修正：匯入時將數字座號 (1) 轉回系統標準格式 ("01")
                         id: row['座號'] ? String(row['座號']).padStart(2, '0') : '00',
-                        
                         name: row['姓名'] || '', 
-                        
-                        // 相容多種版本欄位名稱 (V5.1 新版 / V4 舊版)
                         motto: row['學籍卡導師評語'] || row['八字箴言'] || '',
                         polished_comment: row['學期成績單導師評語'] || row['期末評語'] || '', 
-                        
-                        // 若 Excel 中沒有原始紀錄 (通常是行政存檔)，則留空，不影響評語顯示
                         raw_comment: row['原始紀錄'] || '' 
                     }));
-                    
                     const newId = 'class_import_' + Date.now();
-                    
-                    // 決定班級名稱：如果有抓到年級資訊，就直接用「X年X班」命名
                     let className = file.name.replace(/\.[^/.]+$/, "");
-                    if (detectedGrade && detectedClassNum) {
-                        className = `${detectedGrade}年${detectedClassNum}班 (匯入)`;
-                    }
-
-                    // 寫入資料庫
-                    db.classes[newId] = { 
-                        name: className,
-                        grade: detectedGrade, 
-                        classNum: detectedClassNum, 
-                        students: importedStudents 
-                    };
-                    
-                    switchClass(newId); 
-                    showClassManager.value = false;
-                    
-                    // 根據偵測結果給予不同提示
-                    if (detectedGrade && detectedClassNum) {
-                        alert(`匯入成功！已自動辨識為 ${detectedGrade} 年 ${detectedClassNum} 班。`);
-                    } else {
-                        alert('匯入成功！此檔案未包含年級資訊（可能是舊版格式），請記得手動設定年級與班序。');
-                    }
+                    if (detectedGrade && detectedClassNum) className = `${detectedGrade}年${detectedClassNum}班 (匯入)`;
+                    db.classes[newId] = { name: className, grade: detectedGrade, classNum: detectedClassNum, students: importedStudents };
+                    switchClass(newId); showClassManager.value = false;
+                    alert(detectedGrade ? `匯入成功！${detectedGrade}年${detectedClassNum}班。` : '匯入成功！請手動設定年級。');
                 };
                 reader.readAsBinaryString(file); e.target.value = '';
             };
             
             const resetCurrentClass = () => { if(confirm('清空？')) { db.classes[db.activeClassId].students = []; currentIdx.value = -1; } };
-            const selectStudent = (index) => currentIdx.value = index;
             const addTag = (tag) => { if (currentStudent.value) currentStudent.value.raw_comment += (currentStudent.value.raw_comment ? '、' : '') + tag; };
 
-            // V5.1 AI Logic: Dual Tone
             const generateComment = async () => {
                 if (!apiKey.value) { alert('請輸入 Key'); return; }
                 if (!currentStudent.value.name) { alert('請輸入姓名'); return; }
                 if (!currentStudent.value.raw_comment) { alert('請輸入紀錄'); return; }
-                isGenerating.value = true; currentStudent.value.polished_comment = "🐾 貓貓思考中...";
-                
-                const prompt = `
-                    角色：台灣國小「${selectedSubject.value}」老師。
-                    任務：為學生「${currentStudent.value.name}」撰寫兩份評語。
-                    
-                    觀察紀錄：${currentStudent.value.raw_comment}
-                    
-                    請嚴格按照以下 JSON 格式輸出：
-                    {
-                        "comment": "學期成績單評語 (暖心)",
-                        "motto": "學籍卡八字箴言 (嚴謹)"
-                    }
-
-                    規則1 (comment - 給家長)：
-                    - 字數 70-80 字。
-                    - 語氣溫暖肯定，融合 SEL 成長型思維。
-                    - 即使有缺點，也要用「期許」的方式表達。
-
-                    規則2 (motto - 學籍卡紀錄)：
-                    - 格式：必須是兩個四字詞語，中間用全形逗號隔開 (例如：品學兼優，熱心助人)。
-                    - 語氣：中立、客觀、嚴格。真實反映觀察紀錄。
-                    - 判斷邏輯：
-                      A. 若觀察紀錄全為優點 -> 給予「兩好」 (如：積極進取，樂於助人)。
-                      B. 若觀察紀錄好壞參半 -> 給予「一好一壞」 (如：活潑好動，需守秩序)。
-                      C. 若觀察紀錄多為缺點 -> 給予「兩壞/提醒」 (如：加強專注，改進常規)。
-                `;
-                
+                isGenerating.value = true; currentStudent.value.polished_comment = "🐾 思考中...";
+                const prompt = `角色：台灣國小「${selectedSubject.value}」老師。任務：為學生「${currentStudent.value.name}」撰寫兩份評語。觀察紀錄：${currentStudent.value.raw_comment}。請嚴格按照以下 JSON 格式輸出：{"comment": "學期成績單評語 (暖心)", "motto": "學籍卡八字箴言 (嚴謹)"}。規則1(comment)：70-80字，溫暖肯定，融合SEL。規則2(motto)：兩個四字詞語，中間全形逗號隔開。依據觀察紀錄真實性，給予「兩好」、「一好一壞」或「兩壞」。`;
                 let success = false;
                 for (const model of MODEL_CANDIDATES) {
                     try {
@@ -431,8 +392,7 @@
                         if (data.candidates) {
                             let text = data.candidates[0].content.parts[0].text.replace(/```json/g, '').replace(/```/g, '').trim();
                             const result = JSON.parse(text);
-                            currentStudent.value.polished_comment = result.comment; 
-                            currentStudent.value.motto = result.motto;
+                            currentStudent.value.polished_comment = result.comment; currentStudent.value.motto = result.motto;
                             success = true; break;
                         }
                     } catch (e) {}
@@ -441,37 +401,23 @@
                 isGenerating.value = false;
             };
 
-            // V5.1 Export Logic: Strict Administrative Format (修正座號去零)
             const exportToExcel = () => {
                 const cls = currentClassData.value;
-                const grade = cls.grade || '未設定';
-                const classNum = cls.classNum || '未設定';
-
-                // Map data to strict columns
+                const grade = cls.grade || '未設定'; const classNum = cls.classNum || '未設定';
                 const exportData = students.value.map(s => ({ 
-                    '年級': grade,
-                    '班級': classNum,
-                    '座號': parseInt(s.id, 10), // 🔥 修改處：使用 parseInt 將 "01" 轉為數字 1
-                    '姓名': s.name, 
-                    '學期成績單導師評語': s.polished_comment,
-                    '學籍卡導師評語': s.motto
+                    '年級': grade, '班級': classNum, '座號': parseInt(s.id, 10), '姓名': s.name, 
+                    '學期成績單導師評語': s.polished_comment, '學籍卡導師評語': s.motto
                 }));
-
                 const ws = XLSX.utils.json_to_sheet(exportData);
-                const wb = XLSX.utils.book_new(); 
-                XLSX.utils.book_append_sheet(wb, ws, "日常表現與導師評語");
-                
-                // Filename: 日常行為表現與導師評語匯入檔(班級).xlsx
-                const filename = `日常行為表現與導師評語匯入檔(${grade}0${classNum}).xlsx`;
-                XLSX.writeFile(wb, filename);
+                const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "日常表現與導師評語");
+                XLSX.writeFile(wb, `日常行為表現與導師評語匯入檔(${grade}0${classNum}).xlsx`);
             };
-            
             const copyResult = () => navigator.clipboard.writeText(currentStudent.value.polished_comment);
 
             return { 
                 apiKey, isConfigLoaded, students, currentIdx, currentStudent, isGenerating, searchQuery, filteredStudents, selectedSubject, currentTags, 
                 db, showClassManager, newClassName, newClassCount, currentClassData, showCloudModal, gasUrl, isSyncing, syncStatus,
-                newGrade, newClassNum, // V5.1 new refs
+                newGrade, newClassNum, isSidebarOpen, // V5.2 Added isSidebarOpen
                 createNewClass, switchClass, deleteClass, handleImportExcel, resetCurrentClass, selectStudent, addTag, generateComment, exportToExcel, copyResult, uploadToCloud, downloadFromCloud
             };
         }
