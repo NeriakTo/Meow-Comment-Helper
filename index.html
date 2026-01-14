@@ -835,6 +835,17 @@
                     { s: { r: 0, c: 40 }, e: { r: 1, c: 40 } }
                 ];
                 
+                // V6.0: 設定凍結窗格 - 鎖定前 2 列 (表頭) 與前 4 欄 (基本資料)
+                ws['!views'] = [
+                    {
+                        state: 'frozen',
+                        xSplit: 4,        // 凍結 A, B, C, D 欄 (年級、班級編號、座號、姓名)
+                        ySplit: 2,        // 凍結第 1, 2 列 (雙層表頭)
+                        topLeftCell: 'E3', // 設定捲動起始點 (從第 3 列、E 欄開始)
+                        activeCell: 'E3'   // 設定活動儲存格
+                    }
+                ];
+                
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "日常表現與導師評語");
                 XLSX.writeFile(wb, `日常行為表現與導師評語匯入檔(${grade}0${classNum}).xlsx`);
