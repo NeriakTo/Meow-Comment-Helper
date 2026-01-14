@@ -226,7 +226,7 @@
                             </div>
                             <div class="flex flex-col gap-4">
                                 <div class="bg-white p-4 rounded-xl shadow-sm border-2 border-orange-100 relative overflow-hidden">
-                                    <div class="absolute top-0 right-0 bg-slate-600 text-white text-[10px] md:text-xs px-2 py-1 rounded-bl-xl font-bold">學籍卡 (嚴謹)</div>
+                                    <div class="absolute top-0 right-0 bg-slate-600 text-white text-[10px] md:text-xs px-2 py-1 rounded-bl-xl font-bold">學籍卡評語 (嚴謹)</div>
                                     <div class="text-center py-2 flex items-center justify-center min-h-[3rem]">
                                         <div v-if="currentStudent.motto" class="text-lg md:text-xl font-bold text-slate-700 tracking-widest font-serif">{{ currentStudent.motto }}</div>
                                         <div v-else class="text-slate-300 text-xs md:text-sm flex items-center gap-2"><span>⚖️</span> 等待生成...</div>
@@ -234,7 +234,7 @@
                                 </div>
                                 <div class="flex-1 flex flex-col bg-white rounded-xl shadow-lg border border-orange-100 overflow-hidden relative ring-1 ring-orange-50 min-h-[250px]">
                                     <div class="p-3 bg-gradient-to-r from-orange-50 to-white border-b border-orange-100 flex justify-between items-center">
-                                        <h3 class="font-bold text-orange-800 flex items-center gap-2 text-sm md:text-base"><span>✨</span> 成績單 (暖心)</h3>
+                                        <h3 class="font-bold text-orange-800 flex items-center gap-2 text-sm md:text-base"><span>✨</span> 導師評語 (暖心)</h3>
                                         <button v-if="currentStudent.polished_comment" @click="copyResult" class="text-xs text-orange-600 font-bold hover:bg-orange-100 px-2 py-1 rounded transition">複製</button>
                                     </div>
                                     <textarea v-model="currentStudent.polished_comment" class="flex-1 w-full p-4 md:p-6 resize-none focus:outline-none text-slate-800 leading-relaxed bg-white text-sm md:text-base" placeholder="貓貓生成的暖心評語將顯示於此..."></textarea>
