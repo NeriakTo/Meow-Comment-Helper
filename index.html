@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>喵嗚評語助手 V5.2</title>
+    <title>喵嗚評語助手 V6.0</title>
     <script src="config.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -176,51 +176,159 @@
         </div>
 
         <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-orange-50/30" v-if="currentStudent">
-            <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8 pb-20 md:pb-0">
-                
-                <div class="flex flex-col gap-4 order-1">
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-orange-100 flex items-center gap-4">
-                        <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-orange-100 flex items-center justify-center text-xl md:text-2xl select-none">🐱</div>
-                        <div class="flex-1">
-                            <label class="text-xs font-bold text-slate-400 uppercase">學生姓名</label>
-                            <input type="text" v-model="currentStudent.name" placeholder="輸入名字..." class="w-full text-xl md:text-2xl font-bold text-slate-800 border-b border-transparent focus:border-orange-400 focus:outline-none bg-transparent">
-                        </div>
-                    </div>
-                    
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-orange-100">
-                        <div class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-1"><span>🐾</span> 快速標籤</div>
-                        <div class="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                            <button v-for="tag in currentTags" :key="tag" @click="addTag(tag)" class="px-2 py-1 md:px-3 text-xs md:text-sm bg-slate-50 hover:bg-orange-100 hover:text-orange-700 text-slate-600 rounded-full border border-slate-100 transition-colors">{{ tag }}</button>
-                        </div>
-                    </div>
-
-                    <div class="flex-1 flex flex-col bg-white rounded-2xl shadow-sm border border-orange-100 overflow-hidden min-h-[200px]">
-                        <div class="p-3 bg-orange-50/50 border-b border-orange-100 flex justify-between items-center"><h3 class="font-bold text-slate-700 flex items-center gap-2"><span>📝</span> 觀察紀錄</h3><button @click="currentStudent.raw_comment = ''" class="text-xs text-slate-400 hover:text-red-500">清空</button></div>
-                        <textarea v-model="currentStudent.raw_comment" class="flex-1 w-full p-4 resize-none focus:outline-none text-slate-700 leading-relaxed placeholder-slate-300 bg-transparent text-base" placeholder="請輸入觀察紀錄..."></textarea>
+            <div class="max-w-6xl mx-auto pb-20 md:pb-0">
+                <!-- V6.0: 學生姓名區塊 -->
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-orange-100 flex items-center gap-4 mb-4">
+                    <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-orange-100 flex items-center justify-center text-xl md:text-2xl select-none">🐱</div>
+                    <div class="flex-1">
+                        <label class="text-xs font-bold text-slate-400 uppercase">學生姓名</label>
+                        <input type="text" v-model="currentStudent.name" placeholder="輸入名字..." class="w-full text-xl md:text-2xl font-bold text-slate-800 border-b border-transparent focus:border-orange-400 focus:outline-none bg-transparent">
                     </div>
                 </div>
 
-                <div class="flex flex-col gap-4 order-2">
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border-2 border-orange-100 relative overflow-hidden">
-                        <div class="absolute top-0 right-0 bg-slate-600 text-white text-[10px] md:text-xs px-2 py-1 rounded-bl-xl font-bold">學籍卡 (嚴謹)</div>
-                        <div class="text-center py-2 flex items-center justify-center min-h-[3rem]">
-                            <div v-if="currentStudent.motto" class="text-xl md:text-2xl font-bold text-slate-700 tracking-widest font-serif">{{ currentStudent.motto }}</div>
-                            <div v-else class="text-slate-300 text-sm flex items-center gap-2"><span>⚖️</span> 等待生成...</div>
+                <!-- V6.0: Tabs 導航 -->
+                <div class="bg-white rounded-2xl shadow-sm border border-orange-100 mb-4 overflow-hidden">
+                    <div class="flex border-b border-orange-100 overflow-x-auto no-scrollbar">
+                        <button @click="activeTab = 'comment'" 
+                                class="flex-1 px-4 py-3 text-sm md:text-base font-bold transition-colors border-b-2"
+                                :class="activeTab === 'comment' ? 'text-orange-600 border-orange-500 bg-orange-50' : 'text-slate-500 border-transparent hover:bg-orange-50/50'">
+                            📝 評語生成
+                        </button>
+                        <button @click="activeTab = 'behavior'" 
+                                class="flex-1 px-4 py-3 text-sm md:text-base font-bold transition-colors border-b-2"
+                                :class="activeTab === 'behavior' ? 'text-orange-600 border-orange-500 bg-orange-50' : 'text-slate-500 border-transparent hover:bg-orange-50/50'">
+                            📊 行為量表
+                        </button>
+                        <button @click="activeTab = 'records'" 
+                                class="flex-1 px-4 py-3 text-sm md:text-base font-bold transition-colors border-b-2"
+                                :class="activeTab === 'records' ? 'text-orange-600 border-orange-500 bg-orange-50' : 'text-slate-500 border-transparent hover:bg-orange-50/50'">
+                            🏆 多元紀錄
+                        </button>
+                    </div>
+
+                    <!-- Tab 1: 評語生成 -->
+                    <div v-show="activeTab === 'comment'" class="p-4 md:p-6">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                            <div class="flex flex-col gap-4">
+                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                    <div class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-1"><span>🐾</span> 快速標籤</div>
+                                    <div class="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                                        <button v-for="tag in currentTags" :key="tag" @click="addTag(tag)" class="px-2 py-1 md:px-3 text-xs md:text-sm bg-white hover:bg-orange-100 hover:text-orange-700 text-slate-600 rounded-full border border-slate-200 transition-colors">{{ tag }}</button>
+                                    </div>
+                                </div>
+                                <div class="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-[200px]">
+                                    <div class="p-3 bg-orange-50/50 border-b border-orange-100 flex justify-between items-center">
+                                        <h3 class="font-bold text-slate-700 flex items-center gap-2 text-sm md:text-base"><span>📝</span> 觀察紀錄</h3>
+                                        <button @click="currentStudent.raw_comment = ''" class="text-xs text-slate-400 hover:text-red-500">清空</button>
+                                    </div>
+                                    <textarea v-model="currentStudent.raw_comment" class="flex-1 w-full p-4 resize-none focus:outline-none text-slate-700 leading-relaxed placeholder-slate-300 bg-transparent text-sm md:text-base" placeholder="請輸入觀察紀錄..."></textarea>
+                                </div>
+                            </div>
+                            <div class="flex flex-col gap-4">
+                                <div class="bg-white p-4 rounded-xl shadow-sm border-2 border-orange-100 relative overflow-hidden">
+                                    <div class="absolute top-0 right-0 bg-slate-600 text-white text-[10px] md:text-xs px-2 py-1 rounded-bl-xl font-bold">學籍卡 (嚴謹)</div>
+                                    <div class="text-center py-2 flex items-center justify-center min-h-[3rem]">
+                                        <div v-if="currentStudent.motto" class="text-lg md:text-xl font-bold text-slate-700 tracking-widest font-serif">{{ currentStudent.motto }}</div>
+                                        <div v-else class="text-slate-300 text-xs md:text-sm flex items-center gap-2"><span>⚖️</span> 等待生成...</div>
+                                    </div>
+                                </div>
+                                <div class="flex-1 flex flex-col bg-white rounded-xl shadow-lg border border-orange-100 overflow-hidden relative ring-1 ring-orange-50 min-h-[250px]">
+                                    <div class="p-3 bg-gradient-to-r from-orange-50 to-white border-b border-orange-100 flex justify-between items-center">
+                                        <h3 class="font-bold text-orange-800 flex items-center gap-2 text-sm md:text-base"><span>✨</span> 成績單 (暖心)</h3>
+                                        <button v-if="currentStudent.polished_comment" @click="copyResult" class="text-xs text-orange-600 font-bold hover:bg-orange-100 px-2 py-1 rounded transition">複製</button>
+                                    </div>
+                                    <textarea v-model="currentStudent.polished_comment" class="flex-1 w-full p-4 md:p-6 resize-none focus:outline-none text-slate-800 leading-relaxed bg-white text-sm md:text-base" placeholder="貓貓生成的暖心評語將顯示於此..."></textarea>
+                                    <div class="absolute bottom-4 right-4 md:bottom-6 md:right-6 z-10">
+                                        <button @click="generateComment" :disabled="isGenerating || !apiKey" 
+                                                class="flex items-center justify-center gap-2 px-4 py-2 md:px-6 md:py-3 rounded-full shadow-xl transition-all transform active:scale-95 md:hover:scale-105 disabled:opacity-80 disabled:cursor-not-allowed disabled:transform-none text-white font-bold text-xs md:text-sm" 
+                                                :class="!apiKey ? 'bg-slate-400' : 'bg-gradient-to-r from-orange-400 to-amber-500'">
+                                            <span v-if="!apiKey">🚫 缺 Key</span>
+                                            <span v-else-if="isGenerating">🐾 思考中...</span>
+                                            <span v-else>🐾 幫我寫</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="flex-1 flex flex-col bg-white rounded-2xl shadow-lg border border-orange-100 overflow-hidden relative ring-1 ring-orange-50 min-h-[250px]">
-                        <div class="p-3 bg-gradient-to-r from-orange-50 to-white border-b border-orange-100 flex justify-between items-center"><h3 class="font-bold text-orange-800 flex items-center gap-2"><span>✨</span> 成績單 (暖心)</h3><button v-if="currentStudent.polished_comment" @click="copyResult" class="text-xs text-orange-600 font-bold hover:bg-orange-100 px-2 py-1 rounded transition">複製</button></div>
-                        <textarea v-model="currentStudent.polished_comment" class="flex-1 w-full p-4 md:p-6 resize-none focus:outline-none text-slate-800 leading-relaxed bg-white text-base" placeholder="貓貓生成的暖心評語將顯示於此..."></textarea>
-                        
-                        <div class="absolute bottom-4 right-4 md:bottom-6 md:right-6 z-10">
-                            <button @click="generateComment" :disabled="isGenerating || !apiKey" 
-                                    class="flex items-center justify-center gap-2 px-4 py-2 md:px-6 md:py-3 rounded-full shadow-xl transition-all transform active:scale-95 md:hover:scale-105 disabled:opacity-80 disabled:cursor-not-allowed disabled:transform-none text-white font-bold text-sm md:text-lg" 
-                                    :class="!apiKey ? 'bg-slate-400' : 'bg-gradient-to-r from-orange-400 to-amber-500'">
-                                <span v-if="!apiKey">🚫 缺 Key</span>
-                                <span v-else-if="isGenerating">🐾 思考中...</span>
-                                <span v-else>🐾 幫我寫</span>
+                    <!-- Tab 2: 行為量表 -->
+                    <div v-show="activeTab === 'behavior'" class="p-4 md:p-6 overflow-y-auto max-h-[calc(100vh-300px)]">
+                        <div class="mb-4 flex justify-between items-center">
+                            <h3 class="text-lg md:text-xl font-bold text-slate-700">行為量表評等</h3>
+                            <button @click="setDefaultBehavior" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold rounded-lg transition">
+                                ⚡ 一鍵預設 (大部分符合)
                             </button>
+                        </div>
+                        <div class="space-y-6" v-if="currentStudent.behavior">
+                            <div v-for="(config, category) in BEHAVIOR_CONFIG" :key="category" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
+                                <h4 class="text-base md:text-lg font-bold text-slate-700 mb-4 pb-2 border-b border-slate-200">【{{ category }}】</h4>
+                                <div class="space-y-3 mb-4">
+                                    <div v-for="(item, idx) in config.items" :key="idx" class="flex flex-col md:flex-row md:items-center gap-2">
+                                        <label class="text-xs md:text-sm text-slate-600 flex-1 md:min-w-[300px]">{{ item }}</label>
+                                        <select v-model="currentStudent.behavior[category].items[idx]" 
+                                                class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none">
+                                            <option value="">請選擇</option>
+                                            <option v-for="opt in BEHAVIOR_OPTIONS" :key="opt" :value="opt">{{ opt }}</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mt-4 pt-4 border-t border-slate-200">
+                                    <label class="text-sm font-bold text-slate-600 block mb-2">具體建議：</label>
+                                    <textarea v-model="currentStudent.behavior[category].suggestion" 
+                                              placeholder="請輸入具體建議..." 
+                                              class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none"
+                                              rows="2"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="text-center py-8 text-slate-400">
+                            <p>正在初始化行為量表...</p>
+                        </div>
+                    </div>
+
+                    <!-- Tab 3: 多元紀錄 -->
+                    <div v-show="activeTab === 'records'" class="p-4 md:p-6 overflow-y-auto max-h-[calc(100vh-300px)]">
+                        <h3 class="text-lg md:text-xl font-bold text-slate-700 mb-4">多元表現紀錄</h3>
+                        <div class="space-y-4" v-if="currentStudent.records">
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
+                                <label class="text-sm md:text-base font-bold text-slate-700 block mb-2">團體活動紀錄</label>
+                                <textarea v-model="currentStudent.records.groupActivity" 
+                                          placeholder="請輸入團體活動紀錄..." 
+                                          class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none"
+                                          rows="3"></textarea>
+                            </div>
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
+                                <label class="text-sm md:text-base font-bold text-slate-700 block mb-2">公共服務紀錄 - 校內服務</label>
+                                <textarea v-model="currentStudent.records.publicServiceSchool" 
+                                          placeholder="請輸入校內服務紀錄..." 
+                                          class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none"
+                                          rows="3"></textarea>
+                            </div>
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
+                                <label class="text-sm md:text-base font-bold text-slate-700 block mb-2">公共服務紀錄 - 社區服務</label>
+                                <textarea v-model="currentStudent.records.publicServiceCommunity" 
+                                          placeholder="請輸入社區服務紀錄..." 
+                                          class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none"
+                                          rows="3"></textarea>
+                            </div>
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
+                                <label class="text-sm md:text-base font-bold text-slate-700 block mb-2">校內外特殊表現紀錄 - 校內特殊表現</label>
+                                <textarea v-model="currentStudent.records.specialPerformanceSchool" 
+                                          placeholder="請輸入校內特殊表現紀錄..." 
+                                          class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none"
+                                          rows="3"></textarea>
+                            </div>
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
+                                <label class="text-sm md:text-base font-bold text-slate-700 block mb-2">校內外特殊表現紀錄 - 校外特殊表現</label>
+                                <textarea v-model="currentStudent.records.specialPerformanceExternal" 
+                                          placeholder="請輸入校外特殊表現紀錄..." 
+                                          class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none"
+                                          rows="3"></textarea>
+                            </div>
+                        </div>
+                        <div v-else class="text-center py-8 text-slate-400">
+                            <p>正在初始化多元紀錄...</p>
                         </div>
                     </div>
                 </div>
@@ -259,6 +367,7 @@
             const newClassCount = ref(30);
             const db = reactive({ activeClassId: 'default', classes: {} });
             const currentIdx = ref(-1);
+            const activeTab = ref('comment'); // V6.0: Tab 狀態 ('comment', 'behavior', 'records')
 
             // ... (維持 V5.1 的 tagsDB, MODEL_CANDIDATES) ...
             const tagsDB = {
@@ -272,6 +381,56 @@
                 '社會': ['關懷環境', '具備國際觀', '尊重多元', '樂於討論', '具備公民素養']
             };
             const MODEL_CANDIDATES = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-flash-latest'];
+            
+            // V6.0: 行為量表配置
+            const BEHAVIOR_CONFIG = {
+                '敬愛人': {
+                    items: [
+                        "1.友愛同學，幫助他人，替別人著想",
+                        "2.接納和尊重不同文化的人",
+                        "3.感謝生活中為我們服務的人",
+                        "4.讚美他人，並學習他人的長處",
+                        "5.誠實面對錯誤，勇於改正"
+                    ]
+                },
+                '愛整潔': {
+                    items: [
+                        "1.飯前便後洗手、飯後潔牙漱口",
+                        "2.書包、抽屜和教室保持整潔，物歸定位",
+                        "3.保持儀容整潔，定期修剪指甲",
+                        "4.垃圾不落地，維護校園整潔",
+                        "5.正確使用廁所，保持整潔"
+                    ]
+                },
+                '守秩序': {
+                    items: [
+                        "1.遵守排隊及行進秩序",
+                        "2.不喧嘩、奔跑、做危險動作及拿東西丟人",
+                        "3.遵守用餐秩序，不邊走邊吃",
+                        "4.按時到校，上課不遲到",
+                        "5.遵守公物使用規定，不隨意破壞"
+                    ]
+                },
+                '有禮貌': {
+                    items: [
+                        "1.會向師長、來賓及同學問好",
+                        "2.常說「請、謝謝、對不起」",
+                        "3.仔細聆聽別人發言",
+                        "4.言行有禮，輕聲細語、不說粗暴的話",
+                        "5.虛心接受師長的指導"
+                    ]
+                },
+                '做環保': {
+                    items: [
+                        "1.做好垃圾分類、垃圾減量",
+                        "2.懂得資源回收再利用",
+                        "3.學校午餐、戶外活動時，自備餐具用餐",
+                        "4.節約能源，隨手關燈、關水龍頭",
+                        "5.愛物惜物，不浪費資源"
+                    ]
+                }
+            };
+            const BEHAVIOR_OPTIONS = ['完全符合', '大部分符合', '部分符合', '待改進'];
 
             // Computed
             const currentTags = computed(() => tagsDB[selectedSubject.value] || tagsDB['一般導師']);
@@ -282,7 +441,27 @@
                 return students.map((s, i) => ({...s, originalIndex: i})).filter(s => s.id.includes(searchQuery.value) || s.name.includes(searchQuery.value));
             });
             const students = computed(() => currentClassData.value.students || []);
-            const currentStudent = computed(() => currentIdx.value !== -1 ? students.value[currentIdx.value] : null);
+            const currentStudent = computed(() => {
+                if (currentIdx.value === -1) return null;
+                const student = students.value[currentIdx.value];
+                // V6.0: 確保學生資料有 behavior 和 records
+                if (student && !student.behavior) {
+                    const { behavior, records } = initStudentBehavior();
+                    student.behavior = behavior;
+                    student.records = records;
+                }
+                return student;
+            });
+
+            // V6.0: 遷移舊資料結構
+            const migrateStudentData = (student) => {
+                if (!student.behavior || !student.records) {
+                    const { behavior, records } = initStudentBehavior();
+                    if (!student.behavior) student.behavior = behavior;
+                    if (!student.records) student.records = records;
+                }
+                return student;
+            };
 
             onMounted(() => {
                 if (window.APP_CONFIG) {
@@ -295,8 +474,18 @@
                     if (savedGas) gasUrl.value = savedGas;
                 }
                 const savedDB = localStorage.getItem('gemini_comments_v4_db');
-                if (savedDB) Object.assign(db, JSON.parse(savedDB));
-                else showClassManager.value = true;
+                if (savedDB) {
+                    const parsed = JSON.parse(savedDB);
+                    // V6.0: 遷移所有學生的資料結構
+                    Object.keys(parsed.classes || {}).forEach(classId => {
+                        if (parsed.classes[classId].students) {
+                            parsed.classes[classId].students = parsed.classes[classId].students.map(migrateStudentData);
+                        }
+                    });
+                    Object.assign(db, parsed);
+                } else {
+                    showClassManager.value = true;
+                }
             });
 
             watch(db, (newVal) => localStorage.setItem('gemini_comments_v4_db', JSON.stringify(newVal)), { deep: true });
@@ -329,12 +518,40 @@
                 } catch (e) { syncStatus.value = '❌ 失敗:' + e.message; } finally { isSyncing.value = false; }
             };
 
+            // V6.0: 初始化學生行為資料結構
+            const initStudentBehavior = () => {
+                const behavior = {};
+                const records = {
+                    groupActivity: '',
+                    publicServiceSchool: '',
+                    publicServiceCommunity: '',
+                    specialPerformanceSchool: '',
+                    specialPerformanceExternal: ''
+                };
+                Object.keys(BEHAVIOR_CONFIG).forEach(category => {
+                    behavior[category] = {
+                        items: BEHAVIOR_CONFIG[category].items.map(() => ''),
+                        suggestion: ''
+                    };
+                });
+                return { behavior, records };
+            };
+
             const createNewClass = () => {
                 if (!newGrade.value || !newClassNum.value) { alert('請輸入年級與班級'); return; }
                 const newId = 'class_' + Date.now();
-                const newStudents = Array.from({length: newClassCount.value}, (_, i) => ({
-                    id: String(i+1).padStart(2,'0'), name:'', raw_comment:'', polished_comment:'', motto:''
-                }));
+                const newStudents = Array.from({length: newClassCount.value}, (_, i) => {
+                    const { behavior, records } = initStudentBehavior();
+                    return {
+                        id: String(i+1).padStart(2,'0'), 
+                        name:'', 
+                        raw_comment:'', 
+                        polished_comment:'', 
+                        motto:'',
+                        behavior: behavior,
+                        records: records
+                    };
+                });
                 db.classes[newId] = { 
                     name: newClassName.value || `${newGrade.value}年${newClassNum.value}班`, 
                     grade: String(newGrade.value), classNum: String(newClassNum.value), students: newStudents 
@@ -356,13 +573,33 @@
                         if (data[0]['年級']) detectedGrade = String(data[0]['年級']);
                         if (data[0]['班級']) detectedClassNum = String(data[0]['班級']);
                     }
-                    const importedStudents = data.map(row => ({
-                        id: row['座號'] ? String(row['座號']).padStart(2, '0') : '00',
-                        name: row['姓名'] || '', 
-                        motto: row['學籍卡導師評語'] || row['八字箴言'] || '',
-                        polished_comment: row['學期成績單導師評語'] || row['期末評語'] || '', 
-                        raw_comment: row['原始紀錄'] || '' 
-                    }));
+                    const importedStudents = data.map(row => {
+                        const { behavior, records } = initStudentBehavior();
+                        // V6.0: 匯入行為量表資料
+                        Object.keys(BEHAVIOR_CONFIG).forEach(category => {
+                            BEHAVIOR_CONFIG[category].items.forEach((item, idx) => {
+                                const colName = `[${category}]${item}`;
+                                if (row[colName]) behavior[category].items[idx] = row[colName];
+                            });
+                            const suggestionCol = `[${category}]具體建議`;
+                            if (row[suggestionCol]) behavior[category].suggestion = row[suggestionCol];
+                        });
+                        // V6.0: 匯入多元紀錄
+                        if (row['團體活動紀錄']) records.groupActivity = row['團體活動紀錄'];
+                        if (row['公共服務紀錄-校內服務']) records.publicServiceSchool = row['公共服務紀錄-校內服務'];
+                        if (row['公共服務紀錄-社區服務']) records.publicServiceCommunity = row['公共服務紀錄-社區服務'];
+                        if (row['校內外特殊表現紀錄-校內特殊表現']) records.specialPerformanceSchool = row['校內外特殊表現紀錄-校內特殊表現'];
+                        if (row['校內外特殊表現紀錄-校外特殊表現']) records.specialPerformanceExternal = row['校內外特殊表現紀錄-校外特殊表現'];
+                        return {
+                            id: row['座號'] ? String(row['座號']).padStart(2, '0') : '00',
+                            name: row['姓名'] || '', 
+                            motto: row['學籍卡導師評語'] || row['八字箴言'] || '',
+                            polished_comment: row['學期成績單導師評語'] || row['期末評語'] || '', 
+                            raw_comment: row['原始紀錄'] || '',
+                            behavior: behavior,
+                            records: records
+                        };
+                    });
                     const newId = 'class_import_' + Date.now();
                     let className = file.name.replace(/\.[^/.]+$/, "");
                     if (detectedGrade && detectedClassNum) className = `${detectedGrade}年${detectedClassNum}班 (匯入)`;
@@ -375,6 +612,20 @@
             
             const resetCurrentClass = () => { if(confirm('清空？')) { db.classes[db.activeClassId].students = []; currentIdx.value = -1; } };
             const addTag = (tag) => { if (currentStudent.value) currentStudent.value.raw_comment += (currentStudent.value.raw_comment ? '、' : '') + tag; };
+            
+            // V6.0: 一鍵預設行為量表
+            const setDefaultBehavior = () => {
+                if (!currentStudent.value) return;
+                if (!currentStudent.value.behavior) {
+                    const { behavior } = initStudentBehavior();
+                    currentStudent.value.behavior = behavior;
+                }
+                Object.keys(BEHAVIOR_CONFIG).forEach(category => {
+                    BEHAVIOR_CONFIG[category].items.forEach((_, idx) => {
+                        currentStudent.value.behavior[category].items[idx] = '大部分符合';
+                    });
+                });
+            };
 
             const generateComment = async () => {
                 if (!apiKey.value) { alert('請輸入 Key'); return; }
@@ -403,13 +654,159 @@
 
             const exportToExcel = () => {
                 const cls = currentClassData.value;
-                const grade = cls.grade || '未設定'; const classNum = cls.classNum || '未設定';
-                const exportData = students.value.map(s => ({ 
-                    '年級': grade, '班級': classNum, '座號': parseInt(s.id, 10), '姓名': s.name, 
-                    '學期成績單導師評語': s.polished_comment, '學籍卡導師評語': s.motto
-                }));
-                const ws = XLSX.utils.json_to_sheet(exportData);
-                const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "日常表現與導師評語");
+                const grade = cls.grade || '未設定'; 
+                const classNum = cls.classNum || '未設定';
+                
+                // V6.0: 初始化所有學生資料
+                const processedStudents = students.value.map(s => {
+                    if (!s.behavior) {
+                        const { behavior, records } = initStudentBehavior();
+                        s.behavior = behavior;
+                        s.records = records || {
+                            groupActivity: '',
+                            publicServiceSchool: '',
+                            publicServiceCommunity: '',
+                            specialPerformanceSchool: '',
+                            specialPerformanceExternal: ''
+                        };
+                    }
+                    if (!s.records) {
+                        s.records = {
+                            groupActivity: '',
+                            publicServiceSchool: '',
+                            publicServiceCommunity: '',
+                            specialPerformanceSchool: '',
+                            specialPerformanceExternal: ''
+                        };
+                    }
+                    return s;
+                });
+                
+                // V6.0: 建立雙層表頭陣列
+                const ws_data = [];
+                
+                // Row 0: 大分類表頭
+                const row0 = [
+                    '※年級', '※班級編號', '※座號', '※姓名',  // Col A-D (0-3)
+                    '※敬愛人', '', '', '', '', '',  // Col E-J (4-9)
+                    '※愛整潔', '', '', '', '', '',  // Col K-P (10-15)
+                    '※守秩序', '', '', '', '', '',  // Col Q-V (16-21)
+                    '※有禮貌', '', '', '', '', '',  // Col W-AB (22-27)
+                    '※做環保', '', '', '', '', '',  // Col AC-AH (28-33)
+                    '團體活動紀錄',  // Col AI (34)
+                    '公共服務紀錄', '',  // Col AJ-AK (35-36)
+                    '校內外特殊表現紀錄', '',  // Col AL-AM (37-38)
+                    '學期成績單導師評語',  // Col AN (39)
+                    '學籍卡導師評語'  // Col AO (40)
+                ];
+                ws_data.push(row0);
+                
+                // Row 1: 子項目表頭
+                const row1 = [
+                    '', '', '', '',  // Col A-D 留空（垂直合併）
+                ];
+                
+                // 敬愛人子項目 (Col E-J, 索引4-9)
+                BEHAVIOR_CONFIG['敬愛人'].items.forEach(item => row1.push(item));
+                row1.push('具體建議');
+                
+                // 愛整潔子項目 (Col K-P, 索引10-15)
+                BEHAVIOR_CONFIG['愛整潔'].items.forEach(item => row1.push(item));
+                row1.push('具體建議');
+                
+                // 守秩序子項目 (Col Q-V, 索引16-21)
+                BEHAVIOR_CONFIG['守秩序'].items.forEach(item => row1.push(item));
+                row1.push('具體建議');
+                
+                // 有禮貌子項目 (Col W-AB, 索引22-27)
+                BEHAVIOR_CONFIG['有禮貌'].items.forEach(item => row1.push(item));
+                row1.push('具體建議');
+                
+                // 做環保子項目 (Col AC-AH, 索引28-33)
+                BEHAVIOR_CONFIG['做環保'].items.forEach(item => row1.push(item));
+                row1.push('具體建議');
+                
+                // 多元紀錄子項目
+                row1.push('');  // Col AI (34) 團體活動紀錄留空（垂直合併）
+                row1.push('校內服務');  // Col AJ (35)
+                row1.push('社區服務');  // Col AK (36)
+                row1.push('校內特殊表現');  // Col AL (37)
+                row1.push('校外特殊表現');  // Col AM (38)
+                row1.push('');  // Col AN (39) 學期成績單導師評語留空（垂直合併）
+                row1.push('');  // Col AO (40) 學籍卡導師評語留空（垂直合併）
+                
+                ws_data.push(row1);
+                
+                // Row 2+: 學生資料
+                processedStudents.forEach(s => {
+                    const studentRow = [
+                        grade,  // Col A: 年級
+                        classNum,  // Col B: 班級編號
+                        parseInt(s.id, 10) || 0,  // Col C: 座號
+                        s.name || ''  // Col D: 姓名
+                    ];
+                    
+                    // 5 大類行為指標（每類 5 個子題 + 1 個具體建議）
+                    const categories = ['敬愛人', '愛整潔', '守秩序', '有禮貌', '做環保'];
+                    categories.forEach(category => {
+                        BEHAVIOR_CONFIG[category].items.forEach((_, idx) => {
+                            studentRow.push((s.behavior[category] && s.behavior[category].items[idx]) || '');
+                        });
+                        studentRow.push((s.behavior[category] && s.behavior[category].suggestion) || '');
+                    });
+                    
+                    // 多元紀錄
+                    studentRow.push(s.records.groupActivity || '');  // Col AI: 團體活動紀錄
+                    studentRow.push(s.records.publicServiceSchool || '');  // Col AJ: 校內服務
+                    studentRow.push(s.records.publicServiceCommunity || '');  // Col AK: 社區服務
+                    studentRow.push(s.records.specialPerformanceSchool || '');  // Col AL: 校內特殊表現
+                    studentRow.push(s.records.specialPerformanceExternal || '');  // Col AM: 校外特殊表現
+                    
+                    // 評語
+                    studentRow.push(s.polished_comment || '');  // Col AN: 學期成績單導師評語
+                    studentRow.push(s.motto || '');  // Col AO: 學籍卡導師評語
+                    
+                    ws_data.push(studentRow);
+                });
+                
+                // V6.0: 使用 aoa_to_sheet 建立工作表
+                const ws = XLSX.utils.aoa_to_sheet(ws_data);
+                
+                // V6.0: 設定合併儲存格
+                ws['!merges'] = [
+                    // 垂直合併 Row 0-1: 基本資料 (Col A-D)
+                    { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } },  // 年級
+                    { s: { r: 0, c: 1 }, e: { r: 1, c: 1 } },  // 班級編號
+                    { s: { r: 0, c: 2 }, e: { r: 1, c: 2 } },  // 座號
+                    { s: { r: 0, c: 3 }, e: { r: 1, c: 3 } },  // 姓名
+                    
+                    // 水平合併 Row 0: 敬愛人 (Col E-J, 索引4-9)
+                    { s: { r: 0, c: 4 }, e: { r: 0, c: 9 } },
+                    // 水平合併 Row 0: 愛整潔 (Col K-P, 索引10-15)
+                    { s: { r: 0, c: 10 }, e: { r: 0, c: 15 } },
+                    // 水平合併 Row 0: 守秩序 (Col Q-V, 索引16-21)
+                    { s: { r: 0, c: 16 }, e: { r: 0, c: 21 } },
+                    // 水平合併 Row 0: 有禮貌 (Col W-AB, 索引22-27)
+                    { s: { r: 0, c: 22 }, e: { r: 0, c: 27 } },
+                    // 水平合併 Row 0: 做環保 (Col AC-AH, 索引28-33)
+                    { s: { r: 0, c: 28 }, e: { r: 0, c: 33 } },
+                    
+                    // 垂直合併 Row 0-1: 團體活動紀錄 (Col AI, 索引34)
+                    { s: { r: 0, c: 34 }, e: { r: 1, c: 34 } },
+                    
+                    // 水平合併 Row 0: 公共服務紀錄 (Col AJ-AK, 索引35-36)
+                    { s: { r: 0, c: 35 }, e: { r: 0, c: 36 } },
+                    // 水平合併 Row 0: 校內外特殊表現紀錄 (Col AL-AM, 索引37-38)
+                    { s: { r: 0, c: 37 }, e: { r: 0, c: 38 } },
+                    
+                    // 垂直合併 Row 0-1: 學期成績單導師評語 (Col AN, 索引39)
+                    { s: { r: 0, c: 39 }, e: { r: 1, c: 39 } },
+                    // 垂直合併 Row 0-1: 學籍卡導師評語 (Col AO, 索引40)
+                    { s: { r: 0, c: 40 }, e: { r: 1, c: 40 } }
+                ];
+                
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "日常表現與導師評語");
                 XLSX.writeFile(wb, `日常行為表現與導師評語匯入檔(${grade}0${classNum}).xlsx`);
             };
             const copyResult = () => navigator.clipboard.writeText(currentStudent.value.polished_comment);
@@ -417,8 +814,10 @@
             return { 
                 apiKey, isConfigLoaded, students, currentIdx, currentStudent, isGenerating, searchQuery, filteredStudents, selectedSubject, currentTags, 
                 db, showClassManager, newClassName, newClassCount, currentClassData, showCloudModal, gasUrl, isSyncing, syncStatus,
-                newGrade, newClassNum, isSidebarOpen, // V5.2 Added isSidebarOpen
-                createNewClass, switchClass, deleteClass, handleImportExcel, resetCurrentClass, selectStudent, addTag, generateComment, exportToExcel, copyResult, uploadToCloud, downloadFromCloud
+                newGrade, newClassNum, isSidebarOpen, activeTab, // V6.0 Added activeTab
+                BEHAVIOR_CONFIG, BEHAVIOR_OPTIONS, // V6.0 Exposed constants
+                createNewClass, switchClass, deleteClass, handleImportExcel, resetCurrentClass, selectStudent, addTag, generateComment, exportToExcel, copyResult, uploadToCloud, downloadFromCloud,
+                setDefaultBehavior // V6.0 Added
             };
         }
     }).mount('#app');
