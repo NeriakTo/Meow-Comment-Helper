@@ -444,22 +444,57 @@
             const currentStudent = computed(() => {
                 if (currentIdx.value === -1) return null;
                 const student = students.value[currentIdx.value];
-                // V6.0: 確保學生資料有 behavior 和 records
-                if (student && !student.behavior) {
-                    const { behavior, records } = initStudentBehavior();
-                    student.behavior = behavior;
-                    student.records = records;
+                // V6.0: 強制初始化確保 Vue Reactivity
+                if (student) {
+                    initializeStudentData(student);
                 }
                 return student;
             });
 
-            // V6.0: 遷移舊資料結構
-            const migrateStudentData = (student) => {
-                if (!student.behavior || !student.records) {
-                    const { behavior, records } = initStudentBehavior();
-                    if (!student.behavior) student.behavior = behavior;
-                    if (!student.records) student.records = records;
+            // V6.0: 強制初始化學生資料結構（確保 Vue Reactivity）
+            const initializeStudentData = (student) => {
+                if (!student) return;
+                
+                // 確保 behavior 物件存在且完整
+                if (!student.behavior) {
+                    student.behavior = {};
                 }
+                Object.keys(BEHAVIOR_CONFIG).forEach(category => {
+                    if (!student.behavior[category]) {
+                        student.behavior[category] = {
+                            items: BEHAVIOR_CONFIG[category].items.map(() => ''),
+                            suggestion: ''
+                        };
+                    } else {
+                        // 確保 items 陣列長度正確
+                        if (!student.behavior[category].items || student.behavior[category].items.length !== BEHAVIOR_CONFIG[category].items.length) {
+                            student.behavior[category].items = BEHAVIOR_CONFIG[category].items.map(() => '');
+                        }
+                        // 確保 suggestion 存在
+                        if (student.behavior[category].suggestion === undefined) {
+                            student.behavior[category].suggestion = '';
+                        }
+                    }
+                });
+                
+                // 確保 records 物件存在且完整
+                if (!student.records) {
+                    student.records = {
+                        groupActivity: '',
+                        publicServiceSchool: '',
+                        publicServiceCommunity: '',
+                        specialPerformanceSchool: '',
+                        specialPerformanceExternal: ''
+                    };
+                } else {
+                    // 確保所有欄位都存在
+                    if (student.records.groupActivity === undefined) student.records.groupActivity = '';
+                    if (student.records.publicServiceSchool === undefined) student.records.publicServiceSchool = '';
+                    if (student.records.publicServiceCommunity === undefined) student.records.publicServiceCommunity = '';
+                    if (student.records.specialPerformanceSchool === undefined) student.records.specialPerformanceSchool = '';
+                    if (student.records.specialPerformanceExternal === undefined) student.records.specialPerformanceExternal = '';
+                }
+                
                 return student;
             };
 
@@ -476,13 +511,17 @@
                 const savedDB = localStorage.getItem('gemini_comments_v4_db');
                 if (savedDB) {
                     const parsed = JSON.parse(savedDB);
-                    // V6.0: 遷移所有學生的資料結構
+                    // V6.0: 強制初始化所有學生的資料結構（確保 Vue Reactivity）
                     Object.keys(parsed.classes || {}).forEach(classId => {
                         if (parsed.classes[classId].students) {
-                            parsed.classes[classId].students = parsed.classes[classId].students.map(migrateStudentData);
+                            parsed.classes[classId].students.forEach(student => {
+                                initializeStudentData(student);
+                            });
                         }
                     });
                     Object.assign(db, parsed);
+                    // V6.0: 強制觸發一次更新，確保所有資料都是 reactive
+                    db.activeClassId = db.activeClassId;
                 } else {
                     showClassManager.value = true;
                 }
@@ -542,7 +581,7 @@
                 const newId = 'class_' + Date.now();
                 const newStudents = Array.from({length: newClassCount.value}, (_, i) => {
                     const { behavior, records } = initStudentBehavior();
-                    return {
+                    const student = {
                         id: String(i+1).padStart(2,'0'), 
                         name:'', 
                         raw_comment:'', 
@@ -551,6 +590,9 @@
                         behavior: behavior,
                         records: records
                     };
+                    // V6.0: 強制初始化確保 Vue Reactivity
+                    initializeStudentData(student);
+                    return student;
                 });
                 db.classes[newId] = { 
                     name: newClassName.value || `${newGrade.value}年${newClassNum.value}班`, 
@@ -590,7 +632,7 @@
                         if (row['公共服務紀錄-社區服務']) records.publicServiceCommunity = row['公共服務紀錄-社區服務'];
                         if (row['校內外特殊表現紀錄-校內特殊表現']) records.specialPerformanceSchool = row['校內外特殊表現紀錄-校內特殊表現'];
                         if (row['校內外特殊表現紀錄-校外特殊表現']) records.specialPerformanceExternal = row['校內外特殊表現紀錄-校外特殊表現'];
-                        return {
+                        const student = {
                             id: row['座號'] ? String(row['座號']).padStart(2, '0') : '00',
                             name: row['姓名'] || '', 
                             motto: row['學籍卡導師評語'] || row['八字箴言'] || '',
@@ -599,6 +641,9 @@
                             behavior: behavior,
                             records: records
                         };
+                        // V6.0: 強制初始化確保 Vue Reactivity
+                        initializeStudentData(student);
+                        return student;
                     });
                     const newId = 'class_import_' + Date.now();
                     let className = file.name.replace(/\.[^/.]+$/, "");
@@ -616,15 +661,15 @@
             // V6.0: 一鍵預設行為量表
             const setDefaultBehavior = () => {
                 if (!currentStudent.value) return;
-                if (!currentStudent.value.behavior) {
-                    const { behavior } = initStudentBehavior();
-                    currentStudent.value.behavior = behavior;
-                }
+                // V6.0: 強制初始化確保 Vue Reactivity
+                initializeStudentData(currentStudent.value);
                 Object.keys(BEHAVIOR_CONFIG).forEach(category => {
                     BEHAVIOR_CONFIG[category].items.forEach((_, idx) => {
                         currentStudent.value.behavior[category].items[idx] = '大部分符合';
                     });
                 });
+                // V6.0: 強制觸發更新
+                db.activeClassId = db.activeClassId;
             };
 
             const generateComment = async () => {
@@ -653,32 +698,17 @@
             };
 
             const exportToExcel = () => {
+                // V6.0: 強制觸發資料同步，確保讀取最新資料
+                // 透過讀取 db 物件強制觸發 Vue 的 reactive 更新
+                const _ = JSON.stringify(db);
+                
                 const cls = currentClassData.value;
                 const grade = cls.grade || '未設定'; 
                 const classNum = cls.classNum || '未設定';
                 
-                // V6.0: 初始化所有學生資料
+                // V6.0: 強制初始化所有學生資料（確保資料完整性）
                 const processedStudents = students.value.map(s => {
-                    if (!s.behavior) {
-                        const { behavior, records } = initStudentBehavior();
-                        s.behavior = behavior;
-                        s.records = records || {
-                            groupActivity: '',
-                            publicServiceSchool: '',
-                            publicServiceCommunity: '',
-                            specialPerformanceSchool: '',
-                            specialPerformanceExternal: ''
-                        };
-                    }
-                    if (!s.records) {
-                        s.records = {
-                            groupActivity: '',
-                            publicServiceSchool: '',
-                            publicServiceCommunity: '',
-                            specialPerformanceSchool: '',
-                            specialPerformanceExternal: ''
-                        };
-                    }
+                    initializeStudentData(s);
                     return s;
                 });
                 
