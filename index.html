@@ -13,13 +13,8 @@
         body { font-family: 'Noto Sans TC', sans-serif; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .input-focus { transition: all 0.3s ease; }
-        .input-focus:focus { transform: scale(1.01); }
         .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
         .fade-enter-from, .fade-leave-to { opacity: 0; }
-        /* 手機版側邊欄過渡動畫 */
-        .slide-enter-active, .slide-leave-active { transition: transform 0.3s ease; }
-        .slide-enter-from, .slide-leave-to { transform: translateX(-100%); }
     </style>
 </head>
 <body class="bg-orange-50 h-[100dvh] overflow-hidden text-slate-800">
@@ -177,7 +172,7 @@
 
         <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-orange-50/30" v-if="currentStudent">
             <div class="max-w-6xl mx-auto pb-20 md:pb-0">
-                <!-- V6.0: 學生姓名區塊 -->
+                <!-- 學生姓名區塊 -->
                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-orange-100 flex items-center gap-4 mb-4">
                     <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-orange-100 flex items-center justify-center text-xl md:text-2xl select-none">🐱</div>
                     <div class="flex-1">
@@ -186,7 +181,7 @@
                     </div>
                 </div>
 
-                <!-- V6.0: Tabs 導航 -->
+                <!-- Tabs 導航 -->
                 <div class="bg-white rounded-2xl shadow-sm border border-orange-100 mb-4 overflow-hidden">
                     <div class="flex border-b border-orange-100 overflow-x-auto no-scrollbar">
                         <button @click="activeTab = 'comment'" 
@@ -347,10 +342,8 @@
 
     createApp({
         setup() {
-            // V5.2 RWD State
-            const isSidebarOpen = ref(false); // 控制手機側邊欄
-
-            // V5.1 State
+            // State
+            const isSidebarOpen = ref(false);
             const newGrade = ref('');
             const newClassNum = ref('');
             const showCloudModal = ref(false);
@@ -367,9 +360,7 @@
             const newClassCount = ref(30);
             const db = reactive({ activeClassId: 'default', classes: {} });
             const currentIdx = ref(-1);
-            const activeTab = ref('comment'); // V6.0: Tab 狀態 ('comment', 'behavior', 'records')
-
-            // ... (維持 V5.1 的 tagsDB, MODEL_CANDIDATES) ...
+            const activeTab = ref('comment');
             const tagsDB = {
                 '一般導師': ['熱心助人', '負責盡職', '活潑外向', '人緣極佳', '沉默寡言', '專注力佳', '容易分心', '作業優良', '需加強整潔', '禮貌周到', '愛惜公物', '樂於分享'],
                 '國語文': ['字跡工整', '喜愛閱讀', '朗讀流暢', '語意表達佳', '成語運用豐富', '寫作具創意', '字音字形需加強'],
@@ -382,7 +373,7 @@
             };
             const MODEL_CANDIDATES = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-flash-latest'];
             
-            // V6.0: 行為量表配置
+            // 行為量表配置
             const BEHAVIOR_CONFIG = {
                 '敬愛人': {
                     items: [
@@ -444,14 +435,11 @@
             const currentStudent = computed(() => {
                 if (currentIdx.value === -1) return null;
                 const student = students.value[currentIdx.value];
-                // V6.0: 強制初始化確保 Vue Reactivity
-                if (student) {
-                    initializeStudentData(student);
-                }
+                if (student) initializeStudentData(student);
                 return student;
             });
 
-            // V6.0: 強制初始化學生資料結構（確保 Vue Reactivity）
+            // 強制初始化學生資料結構
             const initializeStudentData = (student) => {
                 if (!student) return;
                 
@@ -511,17 +499,13 @@
                 const savedDB = localStorage.getItem('gemini_comments_v4_db');
                 if (savedDB) {
                     const parsed = JSON.parse(savedDB);
-                    // V6.0: 強制初始化所有學生的資料結構（確保 Vue Reactivity）
                     Object.keys(parsed.classes || {}).forEach(classId => {
                         if (parsed.classes[classId].students) {
-                            parsed.classes[classId].students.forEach(student => {
-                                initializeStudentData(student);
-                            });
+                            parsed.classes[classId].students.forEach(initializeStudentData);
                         }
                     });
                     Object.assign(db, parsed);
-                    // V6.0: 強制觸發一次更新，確保所有資料都是 reactive
-                    db.activeClassId = db.activeClassId;
+                    db.activeClassId = db.activeClassId; // 觸發 reactive 更新
                 } else {
                     showClassManager.value = true;
                 }
@@ -557,7 +541,7 @@
                 } catch (e) { syncStatus.value = '❌ 失敗:' + e.message; } finally { isSyncing.value = false; }
             };
 
-            // V6.0: 初始化學生行為資料結構
+            // 初始化學生行為資料結構
             const initStudentBehavior = () => {
                 const behavior = {};
                 const records = {
@@ -579,21 +563,15 @@
             const createNewClass = () => {
                 if (!newGrade.value || !newClassNum.value) { alert('請輸入年級與班級'); return; }
                 const newId = 'class_' + Date.now();
-                const newStudents = Array.from({length: newClassCount.value}, (_, i) => {
-                    const { behavior, records } = initStudentBehavior();
-                    const student = {
-                        id: String(i+1).padStart(2,'0'), 
-                        name:'', 
-                        raw_comment:'', 
-                        polished_comment:'', 
-                        motto:'',
-                        behavior: behavior,
-                        records: records
-                    };
-                    // V6.0: 強制初始化確保 Vue Reactivity
-                    initializeStudentData(student);
-                    return student;
-                });
+                    const newStudents = Array.from({length: newClassCount.value}, (_, i) => {
+                        const { behavior, records } = initStudentBehavior();
+                        const student = {
+                            id: String(i+1).padStart(2,'0'), name:'', raw_comment:'', polished_comment:'', motto:'',
+                            behavior, records
+                        };
+                        initializeStudentData(student);
+                        return student;
+                    });
                 db.classes[newId] = { 
                     name: newClassName.value || `${newGrade.value}年${newClassNum.value}班`, 
                     grade: String(newGrade.value), classNum: String(newClassNum.value), students: newStudents 
@@ -617,16 +595,13 @@
                     }
                     const importedStudents = data.map(row => {
                         const { behavior, records } = initStudentBehavior();
-                        // V6.0: 匯入行為量表資料
                         Object.keys(BEHAVIOR_CONFIG).forEach(category => {
                             BEHAVIOR_CONFIG[category].items.forEach((item, idx) => {
                                 const colName = `[${category}]${item}`;
                                 if (row[colName]) behavior[category].items[idx] = row[colName];
                             });
-                            const suggestionCol = `[${category}]具體建議`;
-                            if (row[suggestionCol]) behavior[category].suggestion = row[suggestionCol];
+                            if (row[`[${category}]具體建議`]) behavior[category].suggestion = row[`[${category}]具體建議`];
                         });
-                        // V6.0: 匯入多元紀錄
                         if (row['團體活動紀錄']) records.groupActivity = row['團體活動紀錄'];
                         if (row['公共服務紀錄-校內服務']) records.publicServiceSchool = row['公共服務紀錄-校內服務'];
                         if (row['公共服務紀錄-社區服務']) records.publicServiceCommunity = row['公共服務紀錄-社區服務'];
@@ -638,10 +613,8 @@
                             motto: row['學籍卡導師評語'] || row['八字箴言'] || '',
                             polished_comment: row['學期成績單導師評語'] || row['期末評語'] || '', 
                             raw_comment: row['原始紀錄'] || '',
-                            behavior: behavior,
-                            records: records
+                            behavior, records
                         };
-                        // V6.0: 強制初始化確保 Vue Reactivity
                         initializeStudentData(student);
                         return student;
                     });
@@ -658,18 +631,16 @@
             const resetCurrentClass = () => { if(confirm('清空？')) { db.classes[db.activeClassId].students = []; currentIdx.value = -1; } };
             const addTag = (tag) => { if (currentStudent.value) currentStudent.value.raw_comment += (currentStudent.value.raw_comment ? '、' : '') + tag; };
             
-            // V6.0: 一鍵預設行為量表
+            // 一鍵預設行為量表
             const setDefaultBehavior = () => {
                 if (!currentStudent.value) return;
-                // V6.0: 強制初始化確保 Vue Reactivity
                 initializeStudentData(currentStudent.value);
                 Object.keys(BEHAVIOR_CONFIG).forEach(category => {
                     BEHAVIOR_CONFIG[category].items.forEach((_, idx) => {
                         currentStudent.value.behavior[category].items[idx] = '大部分符合';
                     });
                 });
-                // V6.0: 強制觸發更新
-                db.activeClassId = db.activeClassId;
+                db.activeClassId = db.activeClassId; // 觸發更新
             };
 
             const generateComment = async () => {
@@ -698,21 +669,18 @@
             };
 
             const exportToExcel = () => {
-                // V6.0: 強制觸發資料同步，確保讀取最新資料
-                // 透過讀取 db 物件強制觸發 Vue 的 reactive 更新
-                const _ = JSON.stringify(db);
-                
+                JSON.stringify(db); // 觸發 reactive 更新
                 const cls = currentClassData.value;
                 const grade = cls.grade || '未設定'; 
                 const classNum = cls.classNum || '未設定';
                 
-                // V6.0: 強制初始化所有學生資料（確保資料完整性）
+                // 初始化所有學生資料
                 const processedStudents = students.value.map(s => {
                     initializeStudentData(s);
                     return s;
                 });
                 
-                // V6.0: 建立雙層表頭陣列
+                // 建立雙層表頭陣列
                 const ws_data = [];
                 
                 // Row 0: 大分類表頭
@@ -736,25 +704,11 @@
                     '', '', '', '',  // Col A-D 留空（垂直合併）
                 ];
                 
-                // 敬愛人子項目 (Col E-J, 索引4-9)
-                BEHAVIOR_CONFIG['敬愛人'].items.forEach(item => row1.push(item));
-                row1.push('具體建議');
-                
-                // 愛整潔子項目 (Col K-P, 索引10-15)
-                BEHAVIOR_CONFIG['愛整潔'].items.forEach(item => row1.push(item));
-                row1.push('具體建議');
-                
-                // 守秩序子項目 (Col Q-V, 索引16-21)
-                BEHAVIOR_CONFIG['守秩序'].items.forEach(item => row1.push(item));
-                row1.push('具體建議');
-                
-                // 有禮貌子項目 (Col W-AB, 索引22-27)
-                BEHAVIOR_CONFIG['有禮貌'].items.forEach(item => row1.push(item));
-                row1.push('具體建議');
-                
-                // 做環保子項目 (Col AC-AH, 索引28-33)
-                BEHAVIOR_CONFIG['做環保'].items.forEach(item => row1.push(item));
-                row1.push('具體建議');
+                // 5 大類行為指標子項目
+                Object.keys(BEHAVIOR_CONFIG).forEach(category => {
+                    BEHAVIOR_CONFIG[category].items.forEach(item => row1.push(item));
+                    row1.push('具體建議');
+                });
                 
                 // 多元紀錄子項目
                 row1.push('');  // Col AI (34) 團體活動紀錄留空（垂直合併）
@@ -799,10 +753,9 @@
                     ws_data.push(studentRow);
                 });
                 
-                // V6.0: 使用 aoa_to_sheet 建立工作表
                 const ws = XLSX.utils.aoa_to_sheet(ws_data);
                 
-                // V6.0: 設定合併儲存格
+                // 設定合併儲存格
                 ws['!merges'] = [
                     // 垂直合併 Row 0-1: 基本資料 (Col A-D)
                     { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } },  // 年級
@@ -835,40 +788,19 @@
                     { s: { r: 0, c: 40 }, e: { r: 1, c: 40 } }
                 ];
                 
-                // V6.0: 設定凍結窗格 - 鎖定前 2 列 (表頭) 與前 4 欄 (基本資料)
-                // SheetJS 使用 !views 屬性來設定凍結窗格（Excel 格式使用 sheetViews）
-                ws['!views'] = [
-                    {
-                        state: 'frozen',
-                        xSplit: 4,              // 凍結 A, B, C, D 欄 (年級、班級編號、座號、姓名)
-                        ySplit: 2,              // 凍結第 1, 2 列 (雙層表頭)
-                        topLeftCell: 'E3',      // 未凍結區域的左上角儲存格
-                        activeCell: 'E3',       // 活動儲存格
-                        activePane: 'bottomRight', // 活動窗格設為右下角
-                        showGridLines: true,     // 顯示網格線
-                        rightToLeft: false      // 從左到右
-                    }
-                ];
-                
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "日常表現與導師評語");
-                
-                // V6.0: 寫入檔案時使用選項以確保凍結窗格生效
-                XLSX.writeFile(wb, `日常行為表現與導師評語匯入檔(${grade}0${classNum}).xlsx`, {
-                    bookType: 'xlsx',
-                    bookSST: false,
-                    type: 'binary'
-                });
+                XLSX.writeFile(wb, `日常行為表現與導師評語匯入檔(${grade}0${classNum}).xlsx`);
             };
             const copyResult = () => navigator.clipboard.writeText(currentStudent.value.polished_comment);
 
             return { 
                 apiKey, isConfigLoaded, students, currentIdx, currentStudent, isGenerating, searchQuery, filteredStudents, selectedSubject, currentTags, 
                 db, showClassManager, newClassName, newClassCount, currentClassData, showCloudModal, gasUrl, isSyncing, syncStatus,
-                newGrade, newClassNum, isSidebarOpen, activeTab, // V6.0 Added activeTab
-                BEHAVIOR_CONFIG, BEHAVIOR_OPTIONS, // V6.0 Exposed constants
+                newGrade, newClassNum, isSidebarOpen, activeTab,
+                BEHAVIOR_CONFIG, BEHAVIOR_OPTIONS,
                 createNewClass, switchClass, deleteClass, handleImportExcel, resetCurrentClass, selectStudent, addTag, generateComment, exportToExcel, copyResult, uploadToCloud, downloadFromCloud,
-                setDefaultBehavior // V6.0 Added
+                setDefaultBehavior
             };
         }
     }).mount('#app');
