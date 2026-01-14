@@ -836,19 +836,29 @@
                 ];
                 
                 // V6.0: 設定凍結窗格 - 鎖定前 2 列 (表頭) 與前 4 欄 (基本資料)
+                // SheetJS 使用 !views 屬性來設定凍結窗格（Excel 格式使用 sheetViews）
                 ws['!views'] = [
                     {
                         state: 'frozen',
-                        xSplit: 4,        // 凍結 A, B, C, D 欄 (年級、班級編號、座號、姓名)
-                        ySplit: 2,        // 凍結第 1, 2 列 (雙層表頭)
-                        topLeftCell: 'E3', // 設定捲動起始點 (從第 3 列、E 欄開始)
-                        activeCell: 'E3'   // 設定活動儲存格
+                        xSplit: 4,              // 凍結 A, B, C, D 欄 (年級、班級編號、座號、姓名)
+                        ySplit: 2,              // 凍結第 1, 2 列 (雙層表頭)
+                        topLeftCell: 'E3',      // 未凍結區域的左上角儲存格
+                        activeCell: 'E3',       // 活動儲存格
+                        activePane: 'bottomRight', // 活動窗格設為右下角
+                        showGridLines: true,     // 顯示網格線
+                        rightToLeft: false      // 從左到右
                     }
                 ];
                 
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "日常表現與導師評語");
-                XLSX.writeFile(wb, `日常行為表現與導師評語匯入檔(${grade}0${classNum}).xlsx`);
+                
+                // V6.0: 寫入檔案時使用選項以確保凍結窗格生效
+                XLSX.writeFile(wb, `日常行為表現與導師評語匯入檔(${grade}0${classNum}).xlsx`, {
+                    bookType: 'xlsx',
+                    bookSST: false,
+                    type: 'binary'
+                });
             };
             const copyResult = () => navigator.clipboard.writeText(currentStudent.value.polished_comment);
 
