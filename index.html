@@ -3,167 +3,305 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>喵嗚評語助手 V6.1</title>
+    <title>喵嗚評語助手 V7.0</title>
     <script src="config.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Varela+Round&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Noto Sans TC', sans-serif; }
+        body { font-family: 'Varela Round', 'Noto Sans TC', sans-serif; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
         .fade-enter-from, .fade-leave-to { opacity: 0; }
     </style>
 </head>
-<body class="bg-orange-50 h-[100dvh] overflow-hidden text-slate-800">
+<body class="bg-[#FFF8F0] h-[100dvh] overflow-hidden text-[#5D4037]">
 
 <div id="app" class="flex h-full w-full relative">
+
+    <!-- 新手引導精靈 (Onboarding Wizard) -->
+    <transition name="fade">
+        <div v-if="showWelcomeWizard" class="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-[#FFF8F0] rounded-3xl shadow-2xl max-w-md w-full border-4 border-[#FFE0B2] overflow-hidden flex flex-col">
+                <!-- 步驟指示器 -->
+                <div class="flex justify-center gap-2 pt-6 pb-2">
+                    <div v-for="step in 3" :key="step" 
+                         class="w-3 h-3 rounded-full transition-all duration-300"
+                         :class="wizardStep >= step ? 'bg-[#FFB74D] scale-110' : 'bg-[#FFE0B2]'"></div>
+                </div>
+
+                <!-- 步驟 1：歡迎 -->
+                <div v-show="wizardStep === 1" class="p-6 md:p-8 text-center">
+                    <div class="text-6xl md:text-7xl mb-4">🐱</div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-[#5D4037] mb-4">嗨！老師辛苦了～</h2>
+                    <p class="text-[#8D6E63] leading-relaxed mb-6">
+                        我是你的評語小幫手。期末到了，讓我來幫你分擔繁重的評語工作吧！<br><br>
+                        在開始之前，我需要一點點「能量」才能運作喔。
+                    </p>
+                    <button @click="nextWizardStep" 
+                            class="w-full py-3 bg-[#FFB74D] hover:bg-[#FFA726] text-white font-bold rounded-2xl shadow-md hover:shadow-lg transition-all transform hover:scale-[1.02]">
+                        開始設定 →
+                    </button>
+                </div>
+
+                <!-- 步驟 2：獲取 Key -->
+                <div v-show="wizardStep === 2" class="p-6 md:p-8 text-center">
+                    <div class="text-5xl md:text-6xl mb-4">🥫</div>
+                    <h2 class="text-xl md:text-2xl font-bold text-[#5D4037] mb-4">領取貓罐頭 (API Key)</h2>
+                    <p class="text-[#8D6E63] leading-relaxed mb-4 text-sm md:text-base">
+                        這是 Google 提供的免費 AI 服務。<br>
+                        請點擊下方按鈕，登入 Google 帳號後，<br>
+                        點選 <strong class="text-[#5D4037]">'Create API key'</strong> 即可。
+                    </p>
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" 
+                       class="inline-flex items-center gap-2 px-6 py-3 bg-[#42A5F5] hover:bg-[#1E88E5] text-white font-bold rounded-2xl shadow-md hover:shadow-lg transition-all mb-4">
+                        🔗 前往 Google AI Studio 領取鑰匙
+                    </a>
+                    <p class="text-xs text-[#C5A89E] mb-6">
+                        💡 取得一串以 <strong>AIza</strong> 開頭的密碼後，請複製起來
+                    </p>
+                    <div class="flex gap-3">
+                        <button @click="prevWizardStep" 
+                                class="flex-1 py-3 bg-[#FFE0B2] hover:bg-[#FFCC80] text-[#8D6E63] font-bold rounded-2xl transition-all">
+                            ← 上一步
+                        </button>
+                        <button @click="nextWizardStep" 
+                                class="flex-1 py-3 bg-[#FFB74D] hover:bg-[#FFA726] text-white font-bold rounded-2xl shadow-md hover:shadow-lg transition-all">
+                            我複製好了 →
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 步驟 3：輸入 Key -->
+                <div v-show="wizardStep === 3" class="p-6 md:p-8 text-center">
+                    <div class="text-5xl md:text-6xl mb-4">✨</div>
+                    <h2 class="text-xl md:text-2xl font-bold text-[#5D4037] mb-4">餵食罐罐 (輸入 Key)</h2>
+                    <p class="text-[#8D6E63] leading-relaxed mb-4 text-sm">
+                        將剛剛複製的那串密碼貼在下面：
+                    </p>
+                    <input type="text" v-model="wizardApiKey" 
+                           placeholder="AIza... 開頭的密碼"
+                           class="w-full px-4 py-3 text-center text-[#5D4037] rounded-2xl bg-white border-2 border-[#FFE0B2] focus:border-[#FFB74D] focus:ring-4 focus:ring-[#FFE0B2]/50 shadow-sm text-sm md:text-base mb-4 font-mono">
+                    <div class="flex gap-3 mb-4">
+                        <button @click="prevWizardStep" 
+                                class="flex-1 py-3 bg-[#FFE0B2] hover:bg-[#FFCC80] text-[#8D6E63] font-bold rounded-2xl transition-all">
+                            ← 上一步
+                        </button>
+                        <button @click="completeWizard" 
+                                :disabled="!wizardApiKey.trim()"
+                                class="flex-1 py-3 bg-[#FFB74D] hover:bg-[#FFA726] text-white font-bold rounded-2xl shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+                            ✨ 啟動助手
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 跳過按鈕 -->
+                <div class="pb-4 text-center">
+                    <button @click="skipWizard" class="text-xs text-[#C5A89E] hover:text-[#8D6E63] hover:underline transition">
+                        跳過教學 (進入試用)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </transition>
 
     <transition name="fade">
         <div v-if="isSidebarOpen" @click="isSidebarOpen = false" class="fixed inset-0 bg-black/50 z-20 md:hidden"></div>
     </transition>
 
     <transition name="fade">
-        <div v-if="showCloudModal" class="absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div v-if="showCloudModal" class="absolute inset-0 z-50 bg-[#5D4037]/50 backdrop-blur-sm flex items-center justify-center p-4">
             <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full border-4 border-blue-200 overflow-hidden flex flex-col max-h-[90vh] overflow-y-auto">
                 <div class="bg-blue-100 p-4 md:p-6 flex justify-between items-center">
                     <h2 class="text-xl md:text-2xl font-bold text-blue-800 flex items-center gap-2"><span>☁️</span> 貓貓雲端同步</h2>
-                    <button @click="showCloudModal = false" class="text-slate-400 hover:text-slate-600 text-2xl">✕</button>
+                    <button @click="showCloudModal = false" class="text-[#8D6E63] hover:text-[#5D4037] text-2xl">✕</button>
                 </div>
                 <div class="p-6 flex flex-col gap-6">
+                    <!-- GAS 教學摺疊區塊 -->
+                    <details class="group">
+                        <summary class="cursor-pointer font-bold text-[#FFB74D] hover:text-[#F57C00] list-none flex items-center gap-2 p-2">
+                            <span class="transition-transform group-open:rotate-90">▶</span>
+                            還沒有雲端貓窩？教我怎麼蓋一個！🛠️
+                        </summary>
+                        <div class="bg-[#FFF3E0] rounded-2xl p-4 mt-2 text-sm text-[#5D4037] space-y-4">
+                            <!-- Step 1 -->
+                            <div>
+                                <p class="font-bold mb-2">📋 Step 1：複製程式碼</p>
+                                <p class="mb-2">請先複製以下這段程式碼：</p>
+                                <div class="relative">
+                                    <pre class="bg-white border-2 border-[#FFE0B2] rounded-xl p-3 text-xs overflow-x-auto font-mono text-[#5D4037] whitespace-pre-wrap">function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = JSON.parse(e.postData.contents);
+  sheet.getRange("A1").setValue(JSON.stringify(data));
+  return ContentService.createTextOutput(JSON.stringify({"result":"success"})).setMimeType(ContentService.MimeType.JSON);
+}
+function doGet(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = sheet.getRange("A1").getValue();
+  return ContentService.createTextOutput(data).setMimeType(ContentService.MimeType.JSON);
+}</pre>
+                                    <button @click="copyGasCode" class="absolute top-2 right-2 px-3 py-1 bg-[#FFB74D] hover:bg-[#FFA726] text-white text-xs font-bold rounded-lg transition">📋 複製代碼</button>
+                                </div>
+                            </div>
+                            <!-- Step 2 -->
+                            <div>
+                                <p class="font-bold mb-2">🆕 Step 2：建立專案</p>
+                                <p>點擊 <a href="https://script.google.com/home/start" target="_blank" class="text-blue-500 hover:text-blue-700 underline font-bold">這裡前往 Google Apps Script</a>，點選<strong>『新專案』</strong>，並將剛剛複製的代碼 <strong>覆蓋</strong> 掉原本的內容。</p>
+                            </div>
+                            <!-- Step 3 -->
+                            <div>
+                                <p class="font-bold mb-2">🚀 Step 3：部署為網頁應用程式</p>
+                                <p class="mb-1">點擊右上角 <strong>『部署』(Deploy)</strong> → <strong>『新增部署』</strong>：</p>
+                                <ol class="list-decimal list-inside space-y-1 pl-2">
+                                    <li>類型選擇：<strong>網頁應用程式 (Web App)</strong></li>
+                                    <li>誰可以存取：務必選 <strong class="text-red-500">『所有人 (Anyone)』</strong> (很重要！)</li>
+                                    <li>點擊 <strong>『部署』</strong></li>
+                                </ol>
+                            </div>
+                            <!-- Step 4 -->
+                            <div>
+                                <p class="font-bold mb-2">🔗 Step 4：取得網址</p>
+                                <p>複製部署完成後的 <strong>『網頁應用程式網址』</strong>（以 <code class="bg-white px-1 rounded">exec</code> 結尾），並貼到下方的輸入框中。</p>
+                            </div>
+                        </div>
+                    </details>
+
                     <div class="space-y-2">
-                        <label class="text-sm font-bold text-slate-500 uppercase">您的 Google Script 網址 (GAS URL)</label>
-                        <input type="text" v-model="gasUrl" placeholder="請貼上 https://script.google.com/.../exec" class="w-full p-3 border rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-blue-300 outline-none transition-all" :class="gasUrl ? 'border-blue-300' : 'border-red-300'">
+                        <label class="text-sm font-bold text-[#8D6E63] uppercase">您的 Google Script 網址 (GAS URL)</label>
+                        <input type="text" v-model="gasUrl" placeholder="請貼上 https://script.google.com/.../exec" class="w-full p-3 border-2 rounded-2xl text-sm bg-white focus:ring-4 focus:ring-[#FFE0B2]/50 outline-none transition-all border-[#FFE0B2] focus:border-[#FFB74D]" :class="gasUrl ? '' : 'border-red-300'">
                     </div>
                     <div class="grid grid-cols-2 gap-4">
-                        <button @click="uploadToCloud" :disabled="!gasUrl || isSyncing" class="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-blue-100 hover:bg-blue-50 hover:border-blue-300 transition gap-2 disabled:opacity-50"><span class="text-3xl">⬆️</span><span class="font-bold text-blue-700">上傳備份</span></button>
-                        <button @click="downloadFromCloud" :disabled="!gasUrl || isSyncing" class="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-green-100 hover:bg-green-50 hover:border-green-300 transition gap-2 disabled:opacity-50"><span class="text-3xl">⬇️</span><span class="font-bold text-green-700">下載還原</span></button>
+                        <button @click="uploadToCloud" :disabled="!gasUrl || isSyncing" class="flex flex-col items-center justify-center p-4 rounded-3xl border-2 border-[#FFE0B2] hover:bg-[#FFF3E0] transition gap-2 disabled:opacity-50"><span class="text-3xl">⬆️</span><span class="font-bold text-[#5D4037]">上傳備份</span></button>
+                        <button @click="downloadFromCloud" :disabled="!gasUrl || isSyncing" class="flex flex-col items-center justify-center p-4 rounded-3xl border-2 border-[#FFE0B2] hover:bg-[#FFF3E0] transition gap-2 disabled:opacity-50"><span class="text-3xl">⬇️</span><span class="font-bold text-[#5D4037]">下載還原</span></button>
                     </div>
-                    <div v-if="syncStatus" class="text-center text-sm font-bold p-3 rounded-xl transition-all" :class="syncStatus.includes('成功') ? 'bg-green-100 text-green-700' : (syncStatus.includes('失敗') ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-600')">{{ syncStatus }}</div>
+                    <div v-if="syncStatus" class="text-center text-sm font-bold p-3 rounded-3xl transition-all" :class="syncStatus.includes('成功') ? 'bg-green-100 text-green-700' : (syncStatus.includes('失敗') ? 'bg-red-100 text-red-700' : 'bg-[#FFF3E0] text-[#8D6E63]')">{{ syncStatus }}</div>
                 </div>
             </div>
         </div>
     </transition>
 
     <transition name="fade">
-        <div v-if="showClassManager" class="absolute inset-0 z-50 bg-orange-900/50 backdrop-blur-sm flex items-center justify-center p-2 md:p-4">
-            <div class="bg-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-2xl border-4 border-orange-200 overflow-hidden flex flex-col max-h-[90vh]">
-                <div class="bg-orange-100 p-4 md:p-6 flex justify-between items-center">
-                    <h2 class="text-xl md:text-2xl font-bold text-orange-800 flex items-center gap-2"><span>🏡</span> 貓窩管理</h2>
-                    <button @click="showClassManager = false" class="text-slate-400 hover:text-slate-600 text-2xl">✕</button>
+        <div v-if="showClassManager" class="absolute inset-0 z-50 bg-[#5D4037]/40 backdrop-blur-sm flex items-center justify-center p-2 md:p-4">
+            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl border-4 border-[#FFE0B2] overflow-hidden flex flex-col max-h-[90vh]">
+                <div class="bg-[#FFE0B2] p-4 md:p-6 flex justify-between items-center">
+                    <h2 class="text-xl md:text-2xl font-bold text-[#5D4037] flex items-center gap-2"><span>🏡</span> 貓窩管理</h2>
+                    <button @click="showClassManager = false" class="text-[#8D6E63] hover:text-[#5D4037] text-2xl">✕</button>
                 </div>
                 <div class="p-4 md:p-6 overflow-y-auto flex-1">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
                         <div v-for="(cls, id) in db.classes" :key="id" @click="switchClass(id)"
-                             class="p-4 rounded-xl border-2 cursor-pointer transition-all relative group"
-                             :class="db.activeClassId === id ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200' : 'border-slate-100 hover:border-orange-300'">
-                            <div class="font-bold text-lg text-slate-700">
+                             class="p-4 rounded-3xl border-2 cursor-pointer transition-all relative group"
+                             :class="db.activeClassId === id ? 'border-[#FFB74D] bg-[#FFF8F0] ring-2 ring-[#FFE0B2]' : 'border-[#FFE0B2] hover:border-[#FFCC80]'">
+                            <div class="font-bold text-lg text-[#5D4037]">
                                 {{ cls.grade }} 年 {{ cls.classNum }} 班
-                                <span class="text-sm font-normal text-slate-500 block md:inline">({{ cls.name || '未命名' }})</span>
+                                <span class="text-sm font-normal text-[#8D6E63] block md:inline">({{ cls.name || '未命名' }})</span>
                             </div>
-                            <div class="text-xs text-slate-400 mt-1">{{ cls.students.length }} 隻小貓</div>
-                            <div v-if="db.activeClassId === id" class="absolute top-2 right-2 text-orange-500 text-xs font-bold bg-white px-2 py-0.5 rounded-full border border-orange-200">當前</div>
+                            <div class="text-xs text-[#8D6E63] mt-1">{{ cls.students.length }} 隻小貓</div>
+                            <div v-if="db.activeClassId === id" class="absolute top-2 right-2 text-[#FFB74D] text-xs font-bold bg-white px-2 py-0.5 rounded-full border border-[#FFCC80]">當前</div>
                             <div class="absolute bottom-2 right-2 flex gap-1">
-                                <button @click.stop="editClass(id)" class="text-slate-300 hover:text-blue-500 md:opacity-0 group-hover:opacity-100 transition-opacity p-1" title="編輯班級">✏️</button>
-                                <button v-if="Object.keys(db.classes).length > 1" @click.stop="deleteClass(id)" class="text-slate-300 hover:text-red-500 md:opacity-0 group-hover:opacity-100 transition-opacity p-1" title="刪除班級">🗑️</button>
+                                <button @click.stop="editClass(id)" class="text-[#C5A89E] hover:text-[#5D4037] md:opacity-0 group-hover:opacity-100 transition-opacity p-1" title="編輯班級">✏️</button>
+                                <button v-if="Object.keys(db.classes).length > 1" @click.stop="deleteClass(id)" class="text-[#C5A89E] hover:text-red-500 md:opacity-0 group-hover:opacity-100 transition-opacity p-1" title="刪除班級">🗑️</button>
                             </div>
                         </div>
                     </div>
-                    <div class="border-t border-slate-100 my-4"></div>
+                    <div class="border-t border-[#FFE0B2] my-4"></div>
                     
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <h3 class="font-bold text-slate-600 mb-3">{{ editingClassId ? '✏️ 編輯班級' : '🆕 建立新班級' }}</h3>
+                    <div class="bg-[#FFF8F0] p-4 rounded-3xl border-2 border-[#FFE0B2]">
+                        <h3 class="font-bold text-[#5D4037] mb-3">{{ editingClassId ? '✏️ 編輯班級' : '🆕 建立新班級' }}</h3>
                         <div class="grid grid-cols-2 gap-3 mb-3">
-                            <div><label class="text-xs text-slate-400 block mb-1">年級 (數字)</label><input v-model="newGrade" type="number" min="1" max="6" placeholder="如: 4" class="w-full px-3 py-2 border rounded-lg text-sm text-center font-bold"></div>
-                            <div><label class="text-xs text-slate-400 block mb-1">班序 (數字)</label><input v-model="newClassNum" type="number" min="1" max="30" placeholder="如: 7" class="w-full px-3 py-2 border rounded-lg text-sm text-center font-bold"></div>
+                            <div><label class="text-xs text-[#8D6E63] block mb-1">年級 (數字)</label><input v-model="newGrade" type="number" min="1" max="6" placeholder="如: 4" class="w-full px-3 py-2 border-2 rounded-2xl text-sm text-center font-bold bg-white border-[#FFE0B2] focus:border-[#FFB74D] focus:ring-4 focus:ring-[#FFE0B2]/50"></div>
+                            <div><label class="text-xs text-[#8D6E63] block mb-1">班序 (數字)</label><input v-model="newClassNum" type="number" min="1" max="30" placeholder="如: 7" class="w-full px-3 py-2 border-2 rounded-2xl text-sm text-center font-bold bg-white border-[#FFE0B2] focus:border-[#FFB74D] focus:ring-4 focus:ring-[#FFE0B2]/50"></div>
                         </div>
-                        <div class="flex gap-2 items-center"><span class="text-xs text-slate-400 whitespace-nowrap">別名:</span><input v-model="newClassName" type="text" placeholder="選填" class="flex-1 px-3 py-2 border rounded-lg text-sm"></div>
+                        <div class="flex gap-2 items-center"><span class="text-xs text-[#8D6E63] whitespace-nowrap">別名:</span><input v-model="newClassName" type="text" placeholder="選填" class="flex-1 px-3 py-2 border-2 rounded-2xl text-sm bg-white border-[#FFE0B2] focus:border-[#FFB74D] focus:ring-4 focus:ring-[#FFE0B2]/50"></div>
                         <div class="flex gap-2 items-center mt-3">
-                            <span v-if="!editingClassId" class="text-xs text-slate-400 whitespace-nowrap">人數:</span>
-                            <input v-if="!editingClassId" v-model.number="newClassCount" type="number" min="1" max="50" class="w-16 px-2 py-1 border rounded-lg text-sm text-center">
+                            <span v-if="!editingClassId || (editingClassId && db.classes[editingClassId] && db.classes[editingClassId].students.length === 0)" class="text-xs text-[#8D6E63] whitespace-nowrap">人數:</span>
+                            <input v-if="!editingClassId || (editingClassId && db.classes[editingClassId] && db.classes[editingClassId].students.length === 0)" v-model.number="newClassCount" type="number" min="1" max="50" class="w-16 px-2 py-1 border-2 rounded-2xl text-sm text-center bg-white border-[#FFE0B2] focus:border-[#FFB74D] focus:ring-4 focus:ring-[#FFE0B2]/50">
                             <button @click="editingClassId ? updateClass() : createNewClass()" 
-                                    :class="editingClassId ? 'flex-1 bg-blue-500 hover:bg-blue-600' : 'flex-1 bg-orange-500 hover:bg-orange-600'"
-                                    class="text-white text-sm font-bold py-2 rounded-lg transition">
+                                    :class="editingClassId ? 'flex-1 bg-[#FFB74D] hover:bg-[#FFA726]' : 'flex-1 bg-[#FFB74D] hover:bg-[#FFA726]'"
+                                    class="text-white text-sm font-bold py-2 rounded-2xl transition">
                                 {{ editingClassId ? '💾 儲存修改' : '建立' }}
                             </button>
-                            <button v-if="editingClassId" @click="cancelEdit" class="px-3 py-2 bg-slate-300 hover:bg-slate-400 text-white text-sm font-bold rounded-lg transition">取消</button>
+                            <button v-if="editingClassId" @click="cancelEdit" class="px-3 py-2 bg-[#C5A89E] hover:bg-[#8D6E63] text-white text-sm font-bold rounded-2xl transition">取消</button>
                         </div>
                     </div>
                     
-                    <div class="mt-4 bg-blue-50 p-4 rounded-xl border border-blue-100 relative overflow-hidden group">
-                        <h3 class="font-bold text-blue-800 mb-2">📂 匯入舊 Excel</h3>
-                        <label class="block w-full bg-white border border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white text-center py-2 rounded-lg cursor-pointer transition text-sm font-bold shadow-sm">選擇檔案匯入<input type="file" accept=".xlsx, .xls" class="hidden" @change="handleImportExcel"></label>
+                    <div class="mt-4 bg-[#FFF3E0] p-4 rounded-3xl border-2 border-[#FFE0B2] relative overflow-hidden group">
+                        <h3 class="font-bold text-[#5D4037] mb-2">📂 匯入舊 Excel</h3>
+                        <label class="block w-full bg-white border-2 border-[#FFE0B2] text-[#5D4037] hover:bg-[#FFB74D] hover:text-white text-center py-2 rounded-2xl cursor-pointer transition text-sm font-bold shadow-sm">選擇檔案匯入<input type="file" accept=".xlsx, .xls" class="hidden" @change="handleImportExcel"></label>
                     </div>
                 </div>
             </div>
         </div>
     </transition>
     
-    <div class="fixed md:relative z-30 h-full w-80 bg-white border-r border-orange-100 flex flex-col transition-transform duration-300 ease-in-out transform"
+    <div class="fixed md:relative z-30 h-full w-[85vw] md:w-80 bg-white/90 backdrop-blur md:backdrop-blur-0 border-4 border-[#FFE0B2] ml-0 md:m-4 rounded-r-3xl md:rounded-3xl shadow-xl flex flex-col transition-transform duration-300 ease-in-out transform"
          :class="isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'">
         
-        <div class="p-4 bg-orange-400 text-white shadow-md z-20 relative overflow-hidden shrink-0">
+        <div class="p-4 bg-[#FFE0B2] text-[#5D4037] shadow-md z-20 relative overflow-hidden shrink-0 rounded-tr-3xl md:rounded-t-3xl">
             <div class="relative z-10">
                 <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center gap-1 cursor-pointer hover:bg-orange-500/50 rounded p-1 transition" @click="showClassManager = true">
+                    <div class="flex items-center gap-2 cursor-pointer hover:bg-[#FFCC80]/60 rounded-2xl p-1 transition" @click="showClassManager = true">
+                        <span class="text-xl">🐾</span>
                         <h1 class="text-lg font-bold tracking-wide">
                             <span v-if="currentClassData.grade">{{ currentClassData.grade }}年{{ currentClassData.classNum }}班</span>
                             <span v-else>{{ currentClassData.name || '選擇班級' }}</span>
                         </h1>
-                        <span class="text-xs bg-white/20 px-2 py-0.5 rounded text-white">▼</span>
+                        <span class="text-xs bg-white/70 px-2 py-0.5 rounded-2xl text-[#8D6E63]">▼</span>
                     </div>
-                    <button @click="isSidebarOpen = false" class="md:hidden text-white/80 hover:text-white text-xl font-bold p-1">✕</button>
+                    <button @click="isSidebarOpen = false" class="md:hidden text-[#8D6E63] hover:text-[#5D4037] text-xl font-bold p-1">✕</button>
                 </div>
                 <div class="relative">
-                    <input type="text" v-model="searchQuery" placeholder="搜尋姓名/座號..." class="w-full pl-8 pr-3 py-1.5 text-slate-800 rounded-lg border-0 focus:ring-2 focus:ring-orange-200 shadow-sm text-sm placeholder-orange-300 bg-white/95">
-                    <span class="absolute left-2.5 top-1.5 text-orange-300 text-xs">🔍</span>
+                    <input type="text" v-model="searchQuery" placeholder="搜尋姓名/座號..." class="w-full pl-8 pr-3 py-2 text-[#5D4037] rounded-2xl bg-white border-2 border-[#FFE0B2] focus:border-[#FFB74D] focus:ring-4 focus:ring-[#FFE0B2]/50 shadow-sm text-sm placeholder-[#C5A89E]">
+                    <span class="absolute left-2.5 top-2 text-[#C5A89E] text-xs">🔍</span>
                 </div>
             </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-3 space-y-2 no-scrollbar bg-orange-50/30">
+        <div class="flex-1 overflow-y-auto p-3 pb-0 space-y-2 no-scrollbar bg-[#FFF8F0]">
             <div v-for="(student, index) in filteredStudents" :key="student.id" @click="selectStudent(student.originalIndex)" 
-                 class="group relative p-3 rounded-2xl cursor-pointer border transition-all duration-200 pr-8" 
-                 :class="currentIdx === student.originalIndex ? 'bg-white border-orange-300 shadow-md ring-2 ring-orange-100' : 'bg-white/60 border-transparent hover:bg-white hover:border-orange-200'">
+                 class="group relative p-3 rounded-3xl cursor-pointer border transition-all duration-200 pr-8" 
+                 :class="currentIdx === student.originalIndex ? 'bg-white border-[#FFB74D] shadow-md ring-2 ring-[#FFE0B2]' : 'bg-white/80 border-transparent hover:bg-white hover:border-[#FFCC80]'">
                 <div class="flex flex-col">
-                    <span class="text-xs font-mono text-slate-400 mb-0.5 flex items-center gap-1"><span class="text-[10px]">🐾</span> 座號 {{ student.id }}</span>
+                    <span class="text-xs font-mono text-[#8D6E63] mb-0.5 flex items-center gap-1"><span class="text-[10px]">🐾</span> 座號 {{ student.id }}</span>
                     <div class="flex items-center gap-2">
-                        <span v-if="student.name" class="font-bold text-slate-700 text-lg">{{ student.name }}</span>
-                        <span v-else class="text-slate-400 text-sm italic">(點擊輸入)</span>
-                        <span v-if="student.polished_comment" class="text-[10px] text-orange-600 font-bold bg-orange-100 px-2 py-0.5 rounded-full border border-orange-200">✔</span>
+                        <span v-if="student.name" class="font-bold text-[#5D4037] text-lg">{{ student.name }}</span>
+                        <span v-else class="text-[#8D6E63] text-sm italic">(點擊輸入)</span>
+                        <span v-if="student.polished_comment" class="text-[10px] text-white font-bold bg-[#FFB74D] px-2 py-0.5 rounded-full border border-[#FFCC80]">✔</span>
                     </div>
                 </div>
             </div>
+            <div class="h-3"></div>
         </div>
-        <div class="p-2 border-t border-orange-100 text-xs text-slate-400 text-center bg-white flex justify-between px-4 shrink-0 safe-area-bottom">
-            <span>{{ students.length }} 隻小貓</span>
-            <button @click="resetCurrentClass" class="text-red-300 hover:text-red-500 hover:underline">清空本班</button>
+        <div class="p-3 md:p-4 border-t-2 border-[#FFCC80] text-sm text-[#8D6E63] bg-[#FFF3E0] flex justify-between items-center px-4 shrink-0 safe-area-bottom rounded-br-[20px] md:rounded-b-[20px] shadow-inner">
+            <span class="font-medium">🐾 {{ students.length }} 隻小貓</span>
+            <button @click="resetCurrentClass" class="text-red-400 hover:text-red-600 hover:underline font-medium">清空本班</button>
         </div>
     </div>
 
-    <div class="flex-1 flex flex-col h-full bg-white relative w-full overflow-hidden">
-        <div class="bg-white border-b border-orange-50 flex flex-col md:flex-row items-start md:items-center justify-between p-3 md:px-8 shadow-sm z-10 gap-3 shrink-0">
+    <div class="flex-1 flex flex-col h-full bg-white/90 relative w-full overflow-hidden md:rounded-3xl md:m-4 shadow-xl md:border-4 border-[#FFE0B2]">
+        <div class="bg-[#FFF8F0] border-b border-[#FFCC80] flex flex-col md:flex-row items-start md:items-center justify-between p-2 md:p-3 md:px-8 shadow-sm z-10 gap-2 md:gap-3 shrink-0">
             
             <div class="flex items-center w-full md:w-auto justify-between">
                 <div class="flex items-center gap-2">
-                    <button @click="isSidebarOpen = true" class="md:hidden p-2 -ml-2 text-slate-500 hover:bg-orange-50 rounded-lg">
+                    <button @click="isSidebarOpen = true" class="md:hidden p-2 -ml-2 text-[#8D6E63] hover:bg-[#FFF3E0] rounded-2xl">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                     </button>
                     <div class="flex items-center gap-2">
                         <span class="text-xs font-bold uppercase whitespace-nowrap" :class="apiKey ? 'text-emerald-600' : 'text-red-500'">{{ apiKey ? '🔑 OK' : '🔑 未輸入' }}</span>
-                        <input type="password" v-model="apiKey" :disabled="isConfigLoaded" placeholder="API Key..." class="bg-orange-50 border rounded-lg px-2 py-1 w-20 md:w-24 text-sm focus:w-64 transition-all focus:outline-none disabled:bg-slate-100" :class="!apiKey ? 'border-red-300' : 'border-orange-200'">
+                        <input type="password" v-model="apiKey" :disabled="isConfigLoaded" placeholder="API Key..." class="bg-white border-2 rounded-2xl px-2 py-1 w-20 md:w-24 text-sm focus:w-64 transition-all focus:outline-none disabled:bg-[#FFF3E0] border-[#FFE0B2] focus:border-[#FFB74D] focus:ring-4 focus:ring-[#FFE0B2]/50">
+                        <button @click="openWizard" class="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center bg-white text-[#FFB74D] border-2 border-[#FFE0B2] hover:bg-[#FFF3E0] hover:border-[#FFB74D] rounded-full shadow-sm transition font-bold text-sm" title="Gemini API Key 取得教學說明">❓</button>
                     </div>
                 </div>
                 
-                <div v-if="currentStudent" class="md:hidden font-bold text-slate-700 truncate max-w-[100px]">{{ currentStudent.name }}</div>
+                <div v-if="currentStudent" class="md:hidden font-bold text-[#5D4037] truncate max-w-[100px]">{{ currentStudent.name }}</div>
             </div>
 
             <div class="flex items-center justify-between w-full md:w-auto gap-3 overflow-x-auto no-scrollbar">
-                <div class="flex items-center gap-2 md:border-l md:pl-4 border-slate-100 shrink-0">
-                    <span class="text-sm font-bold text-slate-600 hidden md:inline">領域：</span>
-                    <select v-model="selectedSubject" class="bg-orange-50 border border-orange-200 text-slate-700 text-sm rounded-lg focus:ring-orange-500 block p-1.5 font-bold cursor-pointer min-w-[140px] md:min-w-[160px]">
+                <div class="flex items-center gap-2 md:border-l md:pl-4 border-[#FFE0B2] shrink-0">
+                    <span class="text-sm font-bold text-[#8D6E63] hidden md:inline">領域：</span>
+                    <select v-model="selectedSubject" class="bg-white border-2 border-[#FFE0B2] text-[#5D4037] text-xs md:text-sm rounded-xl md:rounded-2xl focus:ring-4 focus:ring-[#FFE0B2]/50 focus:border-[#FFB74D] block p-1.5 md:p-2 font-bold cursor-pointer min-w-[120px] md:min-w-[180px]">
                         <option value="一般導師">導師 (班級經營)</option>
                         <option value="國語文">國語文</option>
                         <option value="數學">數學</option>
@@ -175,41 +313,41 @@
                         <option value="綜合活動">綜合</option>
                     </select>
                 </div>
-                <div class="flex gap-2 shrink-0">
-                    <button @click="showCloudModal = true" class="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg shadow transition text-sm font-bold">☁️ <span class="hidden sm:inline">同步</span></button>
-                    <button @click="exportToExcel" class="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg shadow transition text-sm font-bold">🐟 <span class="hidden sm:inline">匯出</span></button>
+                <div class="flex gap-1.5 md:gap-2 shrink-0">
+                    <button @click="showCloudModal = true" class="flex items-center gap-1 bg-[#42A5F5] hover:bg-[#1E88E5] text-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl md:rounded-2xl shadow-md hover:shadow-lg transition text-xs md:text-sm font-bold">☁️ <span class="hidden sm:inline">同步</span></button>
+                    <button @click="exportToExcel" class="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl md:rounded-2xl shadow-md hover:shadow-lg transition text-xs md:text-sm font-bold">📥 <span class="hidden sm:inline">匯出</span></button>
                 </div>
             </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-orange-50/30" v-if="currentStudent">
+        <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-[#FFF8F0]" v-if="currentStudent">
             <div class="max-w-6xl mx-auto pb-20 md:pb-0">
                 <!-- 學生姓名區塊 -->
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-orange-100 flex items-center gap-4 mb-4">
-                    <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-orange-100 flex items-center justify-center text-xl md:text-2xl select-none">🐱</div>
+                <div class="bg-white p-4 rounded-3xl shadow-sm border-2 border-[#FFCC80] flex items-center gap-4 mb-4">
+                    <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[#FFF3E0] flex items-center justify-center text-xl md:text-2xl select-none">🐱</div>
                     <div class="flex-1">
-                        <label class="text-xs font-bold text-slate-400 uppercase">學生姓名</label>
-                        <input type="text" v-model="currentStudent.name" placeholder="輸入名字..." class="w-full text-xl md:text-2xl font-bold text-slate-800 border-b border-transparent focus:border-orange-400 focus:outline-none bg-transparent">
+                        <label class="text-xs font-bold text-[#8D6E63] uppercase">學生姓名</label>
+                        <input type="text" v-model="currentStudent.name" placeholder="輸入名字..." class="w-full text-xl md:text-2xl font-bold text-[#5D4037] border-b border-transparent focus:border-[#FFB74D] focus:outline-none bg-transparent">
                     </div>
                 </div>
 
                 <!-- Tabs 導航 -->
-                <div class="bg-white rounded-2xl shadow-sm border border-orange-100 mb-4 overflow-hidden">
-                    <div class="flex border-b border-orange-100 overflow-x-auto no-scrollbar">
+                <div class="bg-white rounded-3xl shadow-sm border-2 border-[#FFCC80] mb-4 overflow-hidden">
+                    <div class="flex gap-1.5 md:gap-2 p-2 overflow-x-auto no-scrollbar bg-[#FFF8F0]">
                         <button @click="activeTab = 'comment'" 
-                                class="flex-1 px-4 py-3 text-sm md:text-base font-bold transition-colors border-b-2"
-                                :class="activeTab === 'comment' ? 'text-orange-600 border-orange-500 bg-orange-50' : 'text-slate-500 border-transparent hover:bg-orange-50/50'">
-                            📝 評語生成
+                                class="flex-1 px-3 md:px-4 py-2 text-xs md:text-base font-bold transition-all rounded-full whitespace-nowrap"
+                                :class="activeTab === 'comment' ? 'bg-[#FFB74D] text-white shadow-md transform -translate-y-1' : 'bg-[#FFF3E0] text-[#8D6E63] hover:bg-[#FFE0B2]'">
+                            📝 <span class="hidden xs:inline">評語</span><span class="inline xs:hidden">評語</span>
                         </button>
                         <button @click="activeTab = 'behavior'" 
-                                class="flex-1 px-4 py-3 text-sm md:text-base font-bold transition-colors border-b-2"
-                                :class="activeTab === 'behavior' ? 'text-orange-600 border-orange-500 bg-orange-50' : 'text-slate-500 border-transparent hover:bg-orange-50/50'">
-                            📊 行為量表
+                                class="flex-1 px-3 md:px-4 py-2 text-xs md:text-base font-bold transition-all rounded-full whitespace-nowrap"
+                                :class="activeTab === 'behavior' ? 'bg-[#FFB74D] text-white shadow-md transform -translate-y-1' : 'bg-[#FFF3E0] text-[#8D6E63] hover:bg-[#FFE0B2]'">
+                            📊 <span class="hidden xs:inline">行為</span><span class="inline xs:hidden">行為</span>
                         </button>
                         <button @click="activeTab = 'records'" 
-                                class="flex-1 px-4 py-3 text-sm md:text-base font-bold transition-colors border-b-2"
-                                :class="activeTab === 'records' ? 'text-orange-600 border-orange-500 bg-orange-50' : 'text-slate-500 border-transparent hover:bg-orange-50/50'">
-                            🏆 多元紀錄
+                                class="flex-1 px-3 md:px-4 py-2 text-xs md:text-base font-bold transition-all rounded-full whitespace-nowrap"
+                                :class="activeTab === 'records' ? 'bg-[#FFB74D] text-white shadow-md transform -translate-y-1' : 'bg-[#FFF3E0] text-[#8D6E63] hover:bg-[#FFE0B2]'">
+                            🏆 <span class="hidden xs:inline">紀錄</span><span class="inline xs:hidden">紀錄</span>
                         </button>
                     </div>
 
@@ -217,38 +355,38 @@
                     <div v-show="activeTab === 'comment'" class="p-4 md:p-6">
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                             <div class="flex flex-col gap-4">
-                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                    <div class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-1"><span>🐾</span> 快速標籤</div>
+                                <div class="bg-[#FFF8F0] p-4 rounded-3xl border-2 border-[#FFE0B2]">
+                                    <div class="text-xs font-bold text-[#8D6E63] mb-2 uppercase tracking-wider flex items-center gap-1"><span>🐾</span> 快速標籤</div>
                                     <div class="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                                        <button v-for="tag in currentTags" :key="tag" @click="addTag(tag)" class="px-2 py-1 md:px-3 text-xs md:text-sm bg-white hover:bg-orange-100 hover:text-orange-700 text-slate-600 rounded-full border border-slate-200 transition-colors">{{ tag }}</button>
+                                        <button v-for="tag in currentTags" :key="tag" @click="addTag(tag)" class="px-2 py-1 md:px-3 text-xs md:text-sm bg-white hover:bg-[#FFE0B2] hover:text-[#5D4037] text-[#8D6E63] rounded-full border-2 border-[#FFE0B2] transition-colors">{{ tag }}</button>
                                     </div>
                                 </div>
-                                <div class="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-[200px]">
-                                    <div class="p-3 bg-orange-50/50 border-b border-orange-100 flex justify-between items-center">
-                                        <h3 class="font-bold text-slate-700 flex items-center gap-2 text-sm md:text-base"><span>📝</span> 觀察紀錄</h3>
-                                        <button @click="currentStudent.raw_comment = ''" class="text-xs text-slate-400 hover:text-red-500">清空</button>
+                                <div class="flex-1 flex flex-col bg-white rounded-3xl shadow-sm border-2 border-[#FFE0B2] overflow-hidden min-h-[200px]">
+                                    <div class="p-3 bg-[#FFF3E0] border-b border-[#FFCC80] flex justify-between items-center">
+                                        <h3 class="font-bold text-[#5D4037] flex items-center gap-2 text-sm md:text-base"><span>📝</span> 觀察紀錄</h3>
+                                        <button @click="currentStudent.raw_comment = ''" class="text-xs text-[#8D6E63] hover:text-red-500">清空</button>
                                     </div>
-                                    <textarea v-model="currentStudent.raw_comment" class="flex-1 w-full p-4 resize-none focus:outline-none text-slate-700 leading-relaxed placeholder-slate-300 bg-transparent text-sm md:text-base" placeholder="請輸入觀察紀錄..."></textarea>
+                                    <textarea v-model="currentStudent.raw_comment" class="flex-1 w-full p-4 resize-none focus:outline-none text-[#5D4037] leading-relaxed placeholder-[#C5A89E] bg-transparent text-sm md:text-base" placeholder="請輸入觀察紀錄..."></textarea>
                                 </div>
                             </div>
                             <div class="flex flex-col gap-4">
-                                <div class="bg-white p-4 rounded-xl shadow-sm border-2 border-orange-100 relative overflow-hidden">
-                                    <div class="absolute top-0 right-0 bg-slate-600 text-white text-[10px] md:text-xs px-2 py-1 rounded-bl-xl font-bold">學籍卡評語 (嚴謹)</div>
+                                <div class="bg-white p-4 rounded-3xl shadow-sm border-2 border-[#FFCC80] relative overflow-hidden">
+                                    <div class="absolute top-0 right-0 bg-[#C5A89E] text-white text-[10px] md:text-xs px-2 py-1 rounded-bl-2xl font-bold">學籍卡評語 (嚴謹)</div>
                                     <div class="text-center py-2 flex items-center justify-center min-h-[3rem]">
-                                        <div v-if="currentStudent.motto" class="text-lg md:text-xl font-bold text-slate-700 tracking-widest font-serif">{{ currentStudent.motto }}</div>
-                                        <div v-else class="text-slate-300 text-xs md:text-sm flex items-center gap-2"><span>⚖️</span> 等待生成...</div>
+                                        <div v-if="currentStudent.motto" class="text-lg md:text-xl font-bold text-[#5D4037] tracking-widest font-serif">{{ currentStudent.motto }}</div>
+                                        <div v-else class="text-[#C5A89E] text-xs md:text-sm flex items-center gap-2"><span>⚖️</span> 等待生成...</div>
                                     </div>
                                 </div>
-                                <div class="flex-1 flex flex-col bg-white rounded-xl shadow-lg border border-orange-100 overflow-hidden relative ring-1 ring-orange-50 min-h-[250px]">
-                                    <div class="p-3 bg-gradient-to-r from-orange-50 to-white border-b border-orange-100 flex justify-between items-center">
-                                        <h3 class="font-bold text-orange-800 flex items-center gap-2 text-sm md:text-base"><span>✨</span> 導師評語 (暖心)</h3>
-                                        <button v-if="currentStudent.polished_comment" @click="copyResult" class="text-xs text-orange-600 font-bold hover:bg-orange-100 px-2 py-1 rounded transition">複製</button>
+                                <div class="flex-1 flex flex-col bg-white rounded-3xl shadow-lg border-2 border-[#FFCC80] overflow-hidden relative ring-1 ring-[#FFE0B2] min-h-[250px]">
+                                    <div class="p-3 bg-gradient-to-r from-[#FFF8F0] to-white border-b border-[#FFCC80] flex justify-between items-center">
+                                        <h3 class="font-bold text-[#5D4037] flex items-center gap-2 text-sm md:text-base"><span>✨</span> 導師評語 (暖心)</h3>
+                                        <button v-if="currentStudent.polished_comment" @click="copyResult" class="text-xs text-[#8D6E63] font-bold hover:bg-[#FFF3E0] px-2 py-1 rounded-2xl transition">複製</button>
                                     </div>
-                                    <textarea v-model="currentStudent.polished_comment" class="flex-1 w-full p-4 md:p-6 resize-none focus:outline-none text-slate-800 leading-relaxed bg-white text-sm md:text-base" placeholder="貓貓生成的暖心評語將顯示於此..."></textarea>
+                                    <textarea v-model="currentStudent.polished_comment" class="flex-1 w-full p-4 md:p-6 resize-none focus:outline-none text-[#5D4037] leading-relaxed bg-white text-sm md:text-base" placeholder="貓貓生成的暖心評語將顯示於此..."></textarea>
                                     <div class="absolute bottom-4 right-4 md:bottom-6 md:right-6 z-10">
-                                        <button @click="generateComment" :disabled="isGenerating || !apiKey" 
-                                                class="flex items-center justify-center gap-2 px-4 py-2 md:px-6 md:py-3 rounded-full shadow-xl transition-all transform active:scale-95 md:hover:scale-105 disabled:opacity-80 disabled:cursor-not-allowed disabled:transform-none text-white font-bold text-xs md:text-sm" 
-                                                :class="!apiKey ? 'bg-slate-400' : 'bg-gradient-to-r from-orange-400 to-amber-500'">
+                                    <button @click="generateComment" :disabled="isGenerating || !apiKey" 
+                                            class="flex items-center justify-center gap-2 px-6 py-3 md:px-8 md:py-4 rounded-full shadow-xl transition-all transform active:scale-95 md:hover:scale-110 disabled:opacity-80 disabled:cursor-not-allowed disabled:transform-none text-white font-bold text-sm md:text-base" 
+                                            :class="!apiKey ? 'bg-[#C5A89E]' : 'bg-[#FFB74D] hover:bg-[#FFA726]'">
                                             <span v-if="!apiKey">🚫 缺 Key</span>
                                             <span v-else-if="isGenerating">🐾 思考中...</span>
                                             <span v-else>🐾 幫我寫</span>
@@ -260,81 +398,81 @@
                     </div>
 
                     <!-- Tab 2: 行為量表 -->
-                    <div v-show="activeTab === 'behavior'" class="p-4 md:p-6 overflow-y-auto max-h-[calc(100vh-300px)]">
-                        <div class="mb-4 flex justify-between items-center">
-                            <h3 class="text-lg md:text-xl font-bold text-slate-700">行為量表評等</h3>
-                            <button @click="setDefaultBehavior" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold rounded-lg transition">
+                    <div v-show="activeTab === 'behavior'" class="p-3 md:p-6 overflow-y-auto max-h-[calc(100vh-260px)] md:max-h-[calc(100vh-300px)]">
+                        <div class="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                            <h3 class="text-base md:text-xl font-bold text-[#5D4037]">行為量表評等</h3>
+                            <button @click="setDefaultBehavior" class="px-3 md:px-4 py-1.5 md:py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs md:text-sm font-bold rounded-xl md:rounded-2xl shadow-md transition transform active:scale-95 whitespace-nowrap">
                                 ⚡ 一鍵預設 (大部分符合)
                             </button>
                         </div>
                         <div class="space-y-6" v-if="currentStudent.behavior">
-                            <div v-for="(config, category) in BEHAVIOR_CONFIG" :key="category" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-                                <h4 class="text-base md:text-lg font-bold text-slate-700 mb-4 pb-2 border-b border-slate-200">【{{ category }}】</h4>
-                                <div class="space-y-3 mb-4">
-                                    <div v-for="(item, idx) in config.items" :key="idx" class="flex flex-col md:flex-row md:items-center gap-2">
-                                        <label class="text-xs md:text-sm text-slate-600 flex-1 md:min-w-[300px]">{{ item }}</label>
+                            <div v-for="(config, category) in BEHAVIOR_CONFIG" :key="category" class="bg-white rounded-2xl md:rounded-3xl shadow-sm border-2 border-[#FFCC80] p-3 md:p-6">
+                                <h4 class="text-sm md:text-lg font-bold text-[#5D4037] mb-3 md:mb-4 pb-2 border-b border-[#FFE0B2]">【{{ category }}】</h4>
+                                <div class="space-y-2.5 md:space-y-3 mb-4">
+                                    <div v-for="(item, idx) in config.items" :key="idx" class="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-2">
+                                        <label class="text-[13px] md:text-[15px] font-medium text-[#5D4037] flex-1 md:min-w-[300px] leading-snug">{{ item }}</label>
                                         <select v-model="currentStudent.behavior[category].items[idx]" 
-                                                class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none">
+                                                class="px-2.5 md:px-3 py-1.5 md:py-2 border-2 border-[#FFE0B2] rounded-xl md:rounded-2xl text-xs md:text-sm bg-white focus:ring-4 focus:ring-[#FFE0B2]/50 focus:border-[#FFB74D] outline-none w-full md:w-auto">
                                             <option value="">請選擇</option>
                                             <option v-for="opt in BEHAVIOR_OPTIONS" :key="opt" :value="opt">{{ opt }}</option>
                                         </select>
                                     </div>
                                 </div>
-                                <div class="mt-4 pt-4 border-t border-slate-200">
-                                    <label class="text-sm font-bold text-slate-600 block mb-2">具體建議：</label>
+                                <div class="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-[#FFE0B2]">
+                                    <label class="text-xs md:text-sm font-bold text-[#8D6E63] block mb-1.5 md:mb-2">具體建議：</label>
                                     <textarea v-model="currentStudent.behavior[category].suggestion" 
                                               placeholder="請輸入具體建議..." 
-                                              class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none"
+                                              class="w-full px-2.5 md:px-3 py-1.5 md:py-2 border-2 border-[#FFE0B2] rounded-xl md:rounded-2xl text-xs md:text-sm resize-none focus:ring-4 focus:ring-[#FFE0B2]/50 focus:border-[#FFB74D] outline-none"
                                               rows="2"></textarea>
                                 </div>
                             </div>
                         </div>
-                        <div v-else class="text-center py-8 text-slate-400">
+                        <div v-else class="text-center py-8 text-[#8D6E63]">
                             <p>正在初始化行為量表...</p>
                         </div>
                     </div>
 
                     <!-- Tab 3: 多元紀錄 -->
-                    <div v-show="activeTab === 'records'" class="p-4 md:p-6 overflow-y-auto max-h-[calc(100vh-300px)]">
-                        <h3 class="text-lg md:text-xl font-bold text-slate-700 mb-4">多元表現紀錄</h3>
-                        <div class="space-y-4" v-if="currentStudent.records">
-                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-                                <label class="text-sm md:text-base font-bold text-slate-700 block mb-2">團體活動紀錄</label>
+                    <div v-show="activeTab === 'records'" class="p-3 md:p-6 overflow-y-auto max-h-[calc(100vh-260px)] md:max-h-[calc(100vh-300px)]">
+                        <h3 class="text-base md:text-xl font-bold text-[#5D4037] mb-3 md:mb-4">多元表現紀錄</h3>
+                        <div class="space-y-3 md:space-y-4" v-if="currentStudent.records">
+                            <div class="bg-white rounded-2xl md:rounded-3xl shadow-sm border-2 border-[#FFCC80] p-3 md:p-6">
+                                <label class="text-xs md:text-base font-bold text-[#5D4037] block mb-1.5 md:mb-2">團體活動紀錄</label>
                                 <textarea v-model="currentStudent.records.groupActivity" 
                                           placeholder="請輸入團體活動紀錄..." 
-                                          class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none"
-                                          rows="3"></textarea>
+                                          class="w-full px-2.5 md:px-3 py-1.5 md:py-2 border-2 border-[#FFE0B2] rounded-xl md:rounded-2xl text-xs md:text-sm resize-none focus:ring-4 focus:ring-[#FFE0B2]/50 focus:border-[#FFB74D] outline-none"
+                                          rows="2"></textarea>
                             </div>
-                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-                                <label class="text-sm md:text-base font-bold text-slate-700 block mb-2">公共服務紀錄 - 校內服務</label>
+                            <div class="bg-white rounded-2xl md:rounded-3xl shadow-sm border-2 border-[#FFCC80] p-3 md:p-6">
+                                <label class="text-xs md:text-base font-bold text-[#5D4037] block mb-1.5 md:mb-2">公共服務紀錄 - 校內服務</label>
                                 <textarea v-model="currentStudent.records.publicServiceSchool" 
                                           placeholder="請輸入校內服務紀錄..." 
-                                          class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none"
-                                          rows="3"></textarea>
+                                          class="w-full px-2.5 md:px-3 py-1.5 md:py-2 border-2 border-[#FFE0B2] rounded-xl md:rounded-2xl text-xs md:text-sm resize-none focus:ring-4 focus:ring-[#FFE0B2]/50 focus:border-[#FFB74D] outline-none"
+                                          rows="2"></textarea>
                             </div>
-                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-                                <label class="text-sm md:text-base font-bold text-slate-700 block mb-2">公共服務紀錄 - 社區服務</label>
+                            <div class="bg-white rounded-2xl md:rounded-3xl shadow-sm border-2 border-[#FFCC80] p-3 md:p-6">
+                                <label class="text-xs md:text-base font-bold text-[#5D4037] block mb-1.5 md:mb-2">公共服務紀錄 - 社區服務</label>
                                 <textarea v-model="currentStudent.records.publicServiceCommunity" 
                                           placeholder="請輸入社區服務紀錄..." 
-                                          class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none"
-                                          rows="3"></textarea>
+                                          class="w-full px-2.5 md:px-3 py-1.5 md:py-2 border-2 border-[#FFE0B2] rounded-xl md:rounded-2xl text-xs md:text-sm resize-none focus:ring-4 focus:ring-[#FFE0B2]/50 focus:border-[#FFB74D] outline-none"
+                                          rows="2"></textarea>
                             </div>
-                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-                                <label class="text-sm md:text-base font-bold text-slate-700 block mb-2">校內外特殊表現紀錄 - 校內特殊表現</label>
+                            <div class="bg-white rounded-2xl md:rounded-3xl shadow-sm border-2 border-[#FFCC80] p-3 md:p-6">
+                                <label class="text-xs md:text-base font-bold text-[#5D4037] block mb-1.5 md:mb-2">校內外特殊表現 - 校內</label>
                                 <textarea v-model="currentStudent.records.specialPerformanceSchool" 
                                           placeholder="請輸入校內特殊表現紀錄..." 
-                                          class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none"
-                                          rows="3"></textarea>
+                                          class="w-full px-2.5 md:px-3 py-1.5 md:py-2 border-2 border-[#FFE0B2] rounded-xl md:rounded-2xl text-xs md:text-sm resize-none focus:ring-4 focus:ring-[#FFE0B2]/50 focus:border-[#FFB74D] outline-none"
+                                          rows="2"></textarea>
                             </div>
-                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-                                <label class="text-sm md:text-base font-bold text-slate-700 block mb-2">校內外特殊表現紀錄 - 校外特殊表現</label>
+                            <div class="bg-white rounded-2xl md:rounded-3xl shadow-sm border-2 border-[#FFCC80] p-3 md:p-6">
+                                <label class="text-xs md:text-base font-bold text-[#5D4037] block mb-1.5 md:mb-2">校內外特殊表現 - 校外</label>
                                 <textarea v-model="currentStudent.records.specialPerformanceExternal" 
                                           placeholder="請輸入校外特殊表現紀錄..." 
-                                          class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none"
-                                          rows="3"></textarea>
+                                          class="w-full px-2.5 md:px-3 py-1.5 md:py-2 border-2 border-[#FFE0B2] rounded-xl md:rounded-2xl text-xs md:text-sm resize-none focus:ring-4 focus:ring-[#FFE0B2]/50 focus:border-[#FFB74D] outline-none"
+                                          rows="2"></textarea>
                             </div>
                         </div>
-                        <div v-else class="text-center py-8 text-slate-400">
+                        <div v-else class="text-center py-8 text-[#8D6E63]">
                             <p>正在初始化多元紀錄...</p>
                         </div>
                     </div>
@@ -342,9 +480,10 @@
             </div>
         </div>
         
-        <div v-else class="flex-1 flex flex-col items-center justify-center text-slate-300 p-8 text-center">
-            <div class="text-6xl md:text-8xl mb-4 opacity-30 grayscale cursor-pointer hover:scale-110 transition" @click="isSidebarOpen = true">😽</div>
-            <p class="text-lg md:text-xl font-medium text-slate-400">點擊左上角選單<br>選擇一隻小貓吧！</p>
+        <div v-else class="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#FFF8F0]">
+            <div class="text-7xl md:text-9xl mb-6 cursor-pointer hover:scale-110 transition drop-shadow-lg" @click="isSidebarOpen = true">😺</div>
+            <p class="text-xl md:text-2xl font-bold text-[#5D4037] mb-2">歡迎來到喵嗚評語助手！</p>
+            <p class="text-base md:text-lg text-[#8D6E63]">點擊左上角選單，選擇一隻小貓吧 🐾</p>
         </div>
     </div>
 </div>
@@ -374,6 +513,9 @@
             const db = reactive({ activeClassId: 'default', classes: {} });
             const currentIdx = ref(-1);
             const activeTab = ref('comment');
+            const showWelcomeWizard = ref(false); // 新手引導精靈
+            const wizardStep = ref(1); // 引導步驟 1-3
+            const wizardApiKey = ref(''); // 引導中輸入的 API Key
             const tagsDB = {
                 '一般導師': ['熱心助人', '負責盡職', '活潑外向', '人緣極佳', '沉默寡言', '專注力佳', '容易分心', '作業優良', '需加強整潔', '禮貌周到', '愛惜公物', '樂於分享'],
                 '國語文': ['字跡工整', '喜愛閱讀', '朗讀流暢', '語意表達佳', '成語運用豐富', '寫作具創意', '字音字形需加強'],
@@ -505,7 +647,12 @@
                     if (window.APP_CONFIG.GAS_URL) { gasUrl.value = window.APP_CONFIG.GAS_URL; }
                 } else {
                     const savedKey = localStorage.getItem('gemini_api_key');
-                    if (savedKey) apiKey.value = savedKey;
+                    if (savedKey) {
+                        apiKey.value = savedKey;
+                    } else {
+                        // 沒有 API Key，顯示新手引導
+                        showWelcomeWizard.value = true;
+                    }
                     const savedGas = localStorage.getItem('gemini_gas_url');
                     if (savedGas) gasUrl.value = savedGas;
                 }
@@ -523,6 +670,33 @@
                     showClassManager.value = true;
                 }
             });
+
+            // 新手引導方法
+            const nextWizardStep = () => {
+                if (wizardStep.value < 3) wizardStep.value++;
+            };
+            const prevWizardStep = () => {
+                if (wizardStep.value > 1) wizardStep.value--;
+            };
+            const completeWizard = () => {
+                if (wizardApiKey.value.trim()) {
+                    apiKey.value = wizardApiKey.value.trim();
+                    localStorage.setItem('gemini_api_key', apiKey.value);
+                }
+                showWelcomeWizard.value = false;
+                wizardStep.value = 1;
+                wizardApiKey.value = '';
+            };
+            const skipWizard = () => {
+                showWelcomeWizard.value = false;
+                wizardStep.value = 1;
+                wizardApiKey.value = '';
+            };
+            const openWizard = () => {
+                wizardStep.value = 1;
+                wizardApiKey.value = '';
+                showWelcomeWizard.value = true;
+            };
 
             watch(db, (newVal) => localStorage.setItem('gemini_comments_v4_db', JSON.stringify(newVal)), { deep: true });
             watch(apiKey, (newVal) => { if (!isConfigLoaded.value) localStorage.setItem('gemini_api_key', newVal); });
@@ -610,6 +784,19 @@
                     cls.grade = String(newGrade.value);
                     cls.classNum = String(newClassNum.value);
                     cls.name = newClassName.value || `${newGrade.value}年${newClassNum.value}班`;
+                    
+                    // 如果班級學生數為 0，則根據輸入的人數重新建立學生
+                    if (cls.students.length === 0 && newClassCount.value > 0) {
+                        cls.students = Array.from({length: newClassCount.value}, (_, i) => {
+                            const { behavior, records } = initStudentBehavior();
+                            const student = {
+                                id: String(i+1).padStart(2,'0'), name:'', raw_comment:'', polished_comment:'', motto:'',
+                                behavior, records
+                            };
+                            initializeStudentData(student);
+                            return student;
+                        });
+                    }
                 }
                 cancelEdit();
             };
@@ -936,14 +1123,32 @@
                 XLSX.writeFile(wb, `日常行為表現與導師評語匯入檔(${grade}0${classNum}).xlsx`);
             };
             const copyResult = () => navigator.clipboard.writeText(currentStudent.value.polished_comment);
+            
+            // 複製 GAS 程式碼
+            const gasCode = `function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = JSON.parse(e.postData.contents);
+  sheet.getRange("A1").setValue(JSON.stringify(data));
+  return ContentService.createTextOutput(JSON.stringify({"result":"success"})).setMimeType(ContentService.MimeType.JSON);
+}
+function doGet(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = sheet.getRange("A1").getValue();
+  return ContentService.createTextOutput(data).setMimeType(ContentService.MimeType.JSON);
+}`;
+            const copyGasCode = () => {
+                navigator.clipboard.writeText(gasCode);
+                alert('✅ 程式碼已複製！請前往 Google Apps Script 貼上。');
+            };
 
             return { 
                 apiKey, isConfigLoaded, students, currentIdx, currentStudent, isGenerating, searchQuery, filteredStudents, selectedSubject, currentTags, 
                 db, showClassManager, newClassName, newClassCount, currentClassData, showCloudModal, gasUrl, isSyncing, syncStatus,
                 newGrade, newClassNum, isSidebarOpen, activeTab,
                 BEHAVIOR_CONFIG, BEHAVIOR_OPTIONS,
-                createNewClass, editClass, updateClass, cancelEdit, switchClass, deleteClass, handleImportExcel, resetCurrentClass, selectStudent, addTag, generateComment, exportToExcel, copyResult, uploadToCloud, downloadFromCloud,
-                setDefaultBehavior, editingClassId
+                createNewClass, editClass, updateClass, cancelEdit, switchClass, deleteClass, handleImportExcel, resetCurrentClass, selectStudent, addTag, generateComment, exportToExcel, copyResult, copyGasCode, uploadToCloud, downloadFromCloud,
+                setDefaultBehavior, editingClassId,
+                showWelcomeWizard, wizardStep, wizardApiKey, nextWizardStep, prevWizardStep, completeWizard, skipWizard, openWizard
             };
         }
     }).mount('#app');
