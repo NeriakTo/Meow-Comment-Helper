@@ -726,61 +726,87 @@
                 db.activeClassId = db.activeClassId; // 觸發更新
             };
 
+            // 修正後的 generateComment 函式核心
             const generateComment = async () => {
+                // 1. 基礎防呆
                 if (!apiKey.value) { alert('請輸入 Key'); return; }
                 if (!currentStudent.value.name) { alert('請輸入姓名'); return; }
                 if (!currentStudent.value.raw_comment) { alert('請輸入紀錄'); return; }
-                isGenerating.value = true; 
-                currentStudent.value.polished_comment = "🐾 思考中...";
-                const prompt = `角色：台灣國小「${selectedSubject.value}」老師。任務：為學生「${currentStudent.value.name}」撰寫兩份評語。觀察紀錄：${currentStudent.value.raw_comment}。請嚴格按照以下 JSON 格式輸出：{"comment": "學期成績單評語 (暖心)", "motto": "學籍卡八字箴言 (嚴謹)"}。規則1(comment)：70-80字，溫暖肯定，融合SEL。規則2(motto)：兩個四字詞語，中間全形逗號隔開。依據觀察紀錄真實性，給予「兩好」、「一好一壞」或「兩壞」。`;
-                let success = false;
-                let lastError = null;
                 
-                for (const model of MODEL_CANDIDATES) {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒超時
+                // 2. 設定狀態與逾時控制器
+                isGenerating.value = true;
+                currentStudent.value.polished_comment = "🐾 貓貓思考中...";
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒逾時設定
+
+                // 3. 精心設計的 Prompt (切勿精簡此段)
+                const prompt = `
+                    角色設定：你是一位資深的台灣國小導師，擅長班級經營與親師溝通，文字富有溫度且精準。
                     
+                    任務目標：請根據以下「觀察紀錄」，為學生「${currentStudent.value.name}」撰寫兩份風格截然不同的評語。
+                    
+                    輸入資料：
+                    - 學生姓名：${currentStudent.value.name}
+                    - 觀察紀錄：${currentStudent.value.raw_comment}
+                    
+                    輸出格式：請僅輸出一個合法的 JSON 物件 (不要有 markdown 標記)，格式如下：
+                    {
+                        "comment": "學期成績單評語 (給家長看)",
+                        "motto": "學籍卡八字箴言 (給校方存檔)"
+                    }
+                    
+                    撰寫規則：
+                    1. comment (成績單評語)：
+                       - 風格：溫暖、正向、鼓勵、成長型思維 (Growth Mindset)。
+                       - 結構：採用「三明治法」（先肯定優點 -> 溫和提出建議 -> 給予正向期許）。
+                       - 字數：控制在 70 ~ 100 字之間。
+                       - 語氣：讓家長感到安心，即使有缺點，也要用「期許」的方式表達 (例如將「愛講話」轉化為「善於表達，若能看場合發言會更棒」)。
+                    
+                    2. motto (八字箴言)：
+                       - 風格：中立、客觀、嚴謹、簡潔。
+                       - 格式：嚴格限制為「兩個四字詞語」，中間用全形逗號「，」隔開。
+                       - 邏輯判斷 (必遵守)：
+                         (A) 若觀察紀錄【全為優點】：給予兩個正向詞語 (如：品學兼優，熱心助人)。
+                         (B) 若觀察紀錄【好壞參半】：給予一個優點 + 一個提醒 (如：活潑好動，需守秩序)。
+                         (C) 若觀察紀錄【多為缺點】：給予兩個改進建議或提醒 (如：加強專注，改進常規)。
+                `;
+                
+                // 4. API 呼叫 (包含錯誤處理與重試邏輯)
+                let success = false;
+                for (const model of MODEL_CANDIDATES) {
                     try {
                         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.value}`, {
-                            method: 'POST', 
-                            headers: { 'Content-Type': 'application/json' }, 
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-                            signal: controller.signal
+                            signal: controller.signal // 綁定逾時訊號
                         });
                         
-                        clearTimeout(timeoutId); // 成功後清除計時器
-                        
                         const data = await res.json();
-                        if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-                            let text = data.candidates[0].content.parts[0].text.replace(/```json/g, '').replace(/```/g, '').trim();
+                        if (data.candidates) {
+                            let text = data.candidates[0].content.parts[0].text
+                                .replace(/```json/g, '')
+                                .replace(/```/g, '')
+                                .trim();
                             const result = JSON.parse(text);
+                            
+                            // 更新資料
                             currentStudent.value.polished_comment = result.comment; 
                             currentStudent.value.motto = result.motto;
-                            success = true; 
-                            break;
+                            success = true;
+                            break; // 成功則跳出迴圈
                         }
-                    } catch (error) {
-                        clearTimeout(timeoutId); // 確保清除計時器
-                        
-                        if (error.name === 'AbortError') {
-                            console.warn(`Model ${model} 連線逾時（超過15秒）`);
-                            lastError = 'timeout';
-                            // 繼續嘗試下一個模型
-                        } else {
-                            console.warn(`Model ${model} 發生錯誤:`, error);
-                            lastError = error;
-                            // 繼續嘗試下一個模型
-                        }
+                    } catch (e) {
+                        // 若是逾時錯誤，可以在此處記錄，或讓迴圈繼續嘗試下一個模型
+                        if (e.name === 'AbortError') console.warn(`Model ${model} timed out.`);
                     }
                 }
                 
+                // 5. 收尾與狀態重置
+                clearTimeout(timeoutId); // 清除計時器
                 if (!success) {
-                    if (lastError === 'timeout') {
-                        alert('連線逾時（超過15秒），貓貓想太久了，請再試一次！');
-                    } else {
-                        alert('生成失敗，請檢查網路連線或 API Key 是否正確。');
-                    }
-                    currentStudent.value.polished_comment = '';
+                    currentStudent.value.polished_comment = "❌ 生成失敗或連線逾時，請再試一次。";
+                    alert('貓貓想太久了(超過15秒)或是網路不穩，請再按一次「幫我寫」！');
                 }
                 isGenerating.value = false;
             };
