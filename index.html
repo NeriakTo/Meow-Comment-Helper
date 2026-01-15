@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>喵嗚評語助手 V6.0</title>
+    <title>喵嗚評語助手 V6.1</title>
     <script src="config.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -65,19 +65,31 @@
                             </div>
                             <div class="text-xs text-slate-400 mt-1">{{ cls.students.length }} 隻小貓</div>
                             <div v-if="db.activeClassId === id" class="absolute top-2 right-2 text-orange-500 text-xs font-bold bg-white px-2 py-0.5 rounded-full border border-orange-200">當前</div>
-                            <button v-if="Object.keys(db.classes).length > 1" @click.stop="deleteClass(id)" class="absolute bottom-2 right-2 text-slate-300 hover:text-red-500 md:opacity-0 group-hover:opacity-100 transition-opacity p-1">🗑️</button>
+                            <div class="absolute bottom-2 right-2 flex gap-1">
+                                <button @click.stop="editClass(id)" class="text-slate-300 hover:text-blue-500 md:opacity-0 group-hover:opacity-100 transition-opacity p-1" title="編輯班級">✏️</button>
+                                <button v-if="Object.keys(db.classes).length > 1" @click.stop="deleteClass(id)" class="text-slate-300 hover:text-red-500 md:opacity-0 group-hover:opacity-100 transition-opacity p-1" title="刪除班級">🗑️</button>
+                            </div>
                         </div>
                     </div>
                     <div class="border-t border-slate-100 my-4"></div>
                     
                     <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <h3 class="font-bold text-slate-600 mb-3">🆕 建立新班級</h3>
+                        <h3 class="font-bold text-slate-600 mb-3">{{ editingClassId ? '✏️ 編輯班級' : '🆕 建立新班級' }}</h3>
                         <div class="grid grid-cols-2 gap-3 mb-3">
                             <div><label class="text-xs text-slate-400 block mb-1">年級 (數字)</label><input v-model="newGrade" type="number" min="1" max="6" placeholder="如: 4" class="w-full px-3 py-2 border rounded-lg text-sm text-center font-bold"></div>
                             <div><label class="text-xs text-slate-400 block mb-1">班序 (數字)</label><input v-model="newClassNum" type="number" min="1" max="30" placeholder="如: 7" class="w-full px-3 py-2 border rounded-lg text-sm text-center font-bold"></div>
                         </div>
                         <div class="flex gap-2 items-center"><span class="text-xs text-slate-400 whitespace-nowrap">別名:</span><input v-model="newClassName" type="text" placeholder="選填" class="flex-1 px-3 py-2 border rounded-lg text-sm"></div>
-                        <div class="flex gap-2 items-center mt-3"><span class="text-xs text-slate-400 whitespace-nowrap">人數:</span><input v-model.number="newClassCount" type="number" min="1" max="50" class="w-16 px-2 py-1 border rounded-lg text-sm text-center"><button @click="createNewClass" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold py-2 rounded-lg transition">建立</button></div>
+                        <div class="flex gap-2 items-center mt-3">
+                            <span v-if="!editingClassId" class="text-xs text-slate-400 whitespace-nowrap">人數:</span>
+                            <input v-if="!editingClassId" v-model.number="newClassCount" type="number" min="1" max="50" class="w-16 px-2 py-1 border rounded-lg text-sm text-center">
+                            <button @click="editingClassId ? updateClass() : createNewClass()" 
+                                    :class="editingClassId ? 'flex-1 bg-blue-500 hover:bg-blue-600' : 'flex-1 bg-orange-500 hover:bg-orange-600'"
+                                    class="text-white text-sm font-bold py-2 rounded-lg transition">
+                                {{ editingClassId ? '💾 儲存修改' : '建立' }}
+                            </button>
+                            <button v-if="editingClassId" @click="cancelEdit" class="px-3 py-2 bg-slate-300 hover:bg-slate-400 text-white text-sm font-bold rounded-lg transition">取消</button>
+                        </div>
                     </div>
                     
                     <div class="mt-4 bg-blue-50 p-4 rounded-xl border border-blue-100 relative overflow-hidden group">
@@ -358,6 +370,7 @@
             const showClassManager = ref(false);
             const newClassName = ref('');
             const newClassCount = ref(30);
+            const editingClassId = ref(null); // 編輯模式：當前編輯的班級 ID
             const db = reactive({ activeClassId: 'default', classes: {} });
             const currentIdx = ref(-1);
             const activeTab = ref('comment');
@@ -563,20 +576,49 @@
             const createNewClass = () => {
                 if (!newGrade.value || !newClassNum.value) { alert('請輸入年級與班級'); return; }
                 const newId = 'class_' + Date.now();
-                    const newStudents = Array.from({length: newClassCount.value}, (_, i) => {
-                        const { behavior, records } = initStudentBehavior();
-                        const student = {
-                            id: String(i+1).padStart(2,'0'), name:'', raw_comment:'', polished_comment:'', motto:'',
-                            behavior, records
-                        };
-                        initializeStudentData(student);
-                        return student;
-                    });
+                const newStudents = Array.from({length: newClassCount.value}, (_, i) => {
+                    const { behavior, records } = initStudentBehavior();
+                    const student = {
+                        id: String(i+1).padStart(2,'0'), name:'', raw_comment:'', polished_comment:'', motto:'',
+                        behavior, records
+                    };
+                    initializeStudentData(student);
+                    return student;
+                });
                 db.classes[newId] = { 
                     name: newClassName.value || `${newGrade.value}年${newClassNum.value}班`, 
                     grade: String(newGrade.value), classNum: String(newClassNum.value), students: newStudents 
                 };
-                switchClass(newId); newClassName.value = ''; newGrade.value = ''; newClassNum.value = '';
+                switchClass(newId); 
+                cancelEdit();
+            };
+            
+            const editClass = (id) => {
+                const cls = db.classes[id];
+                if (!cls) return;
+                editingClassId.value = id;
+                newGrade.value = cls.grade || '';
+                newClassNum.value = cls.classNum || '';
+                newClassName.value = cls.name || '';
+            };
+            
+            const updateClass = () => {
+                if (!editingClassId.value) return;
+                if (!newGrade.value || !newClassNum.value) { alert('請輸入年級與班級'); return; }
+                const cls = db.classes[editingClassId.value];
+                if (cls) {
+                    cls.grade = String(newGrade.value);
+                    cls.classNum = String(newClassNum.value);
+                    cls.name = newClassName.value || `${newGrade.value}年${newClassNum.value}班`;
+                }
+                cancelEdit();
+            };
+            
+            const cancelEdit = () => {
+                editingClassId.value = null;
+                newClassName.value = '';
+                newGrade.value = '';
+                newClassNum.value = '';
             };
             const switchClass = (id) => { db.activeClassId = id; currentIdx.value = -1; isSidebarOpen.value = false; }; // 切換班級後關閉選單
             const deleteClass = (id) => { if (Object.keys(db.classes).length <= 1) return; if(confirm('刪除？')) { delete db.classes[id]; if (db.activeClassId === id) { db.activeClassId = Object.keys(db.classes)[0]; currentIdx.value = -1; } } };
@@ -587,45 +629,86 @@
                 reader.onload = (evt) => {
                     const wb = XLSX.read(evt.target.result, { type: 'binary' });
                     const ws = wb.Sheets[wb.SheetNames[0]];
-                    const data = XLSX.utils.sheet_to_json(ws);
-                    let detectedGrade = ''; let detectedClassNum = '';
-                    if (data.length > 0) {
-                        if (data[0]['年級']) detectedGrade = String(data[0]['年級']);
-                        if (data[0]['班級']) detectedClassNum = String(data[0]['班級']);
+                    // V6.0: 使用索引定位方式讀取雙層表頭 Excel
+                    const data = XLSX.utils.sheet_to_json(ws, { header: 1 }); // 讀取為陣列的陣列
+                    
+                    if (data.length < 3) {
+                        alert('檔案格式錯誤：資料不足');
+                        return;
                     }
-                    const importedStudents = data.map(row => {
+                    
+                    // 跳過前兩列 (Row 0, Row 1 為標題)，從 Row 2 開始
+                    const studentRows = data.slice(2);
+                    let detectedGrade = '';
+                    let detectedClassNum = '';
+                    
+                    // 從第一筆資料自動偵測年級與班序
+                    if (studentRows.length > 0 && studentRows[0][0]) {
+                        detectedGrade = String(studentRows[0][0]);
+                    }
+                    if (studentRows.length > 0 && studentRows[0][1]) {
+                        detectedClassNum = String(studentRows[0][1]);
+                    }
+                    
+                    const categories = ['敬愛人', '愛整潔', '守秩序', '有禮貌', '做環保'];
+                    const categoryOffsets = [4, 10, 16, 22, 28]; // 每大類的起始索引
+                    
+                    const importedStudents = studentRows.map((row, rowIdx) => {
+                        if (!row || row.length === 0) return null; // 跳過空行
+                        
                         const { behavior, records } = initStudentBehavior();
-                        Object.keys(BEHAVIOR_CONFIG).forEach(category => {
-                            BEHAVIOR_CONFIG[category].items.forEach((item, idx) => {
-                                const colName = `[${category}]${item}`;
-                                if (row[colName]) behavior[category].items[idx] = row[colName];
-                            });
-                            if (row[`[${category}]具體建議`]) behavior[category].suggestion = row[`[${category}]具體建議`];
+                        
+                        // 基本資料 (索引 0-3)
+                        const grade = row[0] ? String(row[0]) : '';
+                        const classNum = row[1] ? String(row[1]) : '';
+                        const id = row[2] ? String(Math.floor(parseFloat(row[2]))).padStart(2, '0') : String(rowIdx + 1).padStart(2, '0');
+                        const name = row[3] ? String(row[3]) : '';
+                        
+                        // 5 大類行為指標 (每類 5 個子題 + 1 個建議)
+                        categories.forEach((category, catIdx) => {
+                            const offset = categoryOffsets[catIdx];
+                            // 5 個子題 (索引 offset 到 offset+4)
+                            for (let i = 0; i < 5; i++) {
+                                if (row[offset + i] !== undefined && row[offset + i] !== null && row[offset + i] !== '') {
+                                    behavior[category].items[i] = String(row[offset + i]);
+                                }
+                            }
+                            // 具體建議 (索引 offset+5)
+                            if (row[offset + 5] !== undefined && row[offset + 5] !== null && row[offset + 5] !== '') {
+                                behavior[category].suggestion = String(row[offset + 5]);
+                            }
                         });
-                        if (row['團體活動紀錄']) records.groupActivity = row['團體活動紀錄'];
-                        if (row['公共服務紀錄-校內服務']) records.publicServiceSchool = row['公共服務紀錄-校內服務'];
-                        if (row['公共服務紀錄-社區服務']) records.publicServiceCommunity = row['公共服務紀錄-社區服務'];
-                        if (row['校內外特殊表現紀錄-校內特殊表現']) records.specialPerformanceSchool = row['校內外特殊表現紀錄-校內特殊表現'];
-                        if (row['校內外特殊表現紀錄-校外特殊表現']) records.specialPerformanceExternal = row['校內外特殊表現紀錄-校外特殊表現'];
+                        
+                        // 多元紀錄
+                        if (row[34] !== undefined && row[34] !== null && row[34] !== '') records.groupActivity = String(row[34]);
+                        if (row[35] !== undefined && row[35] !== null && row[35] !== '') records.publicServiceSchool = String(row[35]);
+                        if (row[36] !== undefined && row[36] !== null && row[36] !== '') records.publicServiceCommunity = String(row[36]);
+                        if (row[37] !== undefined && row[37] !== null && row[37] !== '') records.specialPerformanceSchool = String(row[37]);
+                        if (row[38] !== undefined && row[38] !== null && row[38] !== '') records.specialPerformanceExternal = String(row[38]);
+                        
+                        // 評語 (索引 39, 40)
+                        const polished_comment = row[39] ? String(row[39]) : '';
+                        const motto = row[40] ? String(row[40]) : '';
+                        
                         const student = {
-                            id: row['座號'] ? String(row['座號']).padStart(2, '0') : '00',
-                            name: row['姓名'] || '', 
-                            motto: row['學籍卡導師評語'] || row['八字箴言'] || '',
-                            polished_comment: row['學期成績單導師評語'] || row['期末評語'] || '', 
-                            raw_comment: row['原始紀錄'] || '',
-                            behavior, records
+                            id, name, polished_comment, motto, raw_comment: '', behavior, records
                         };
                         initializeStudentData(student);
                         return student;
-                    });
+                    }).filter(s => s !== null); // 過濾空行
+                    
                     const newId = 'class_import_' + Date.now();
                     let className = file.name.replace(/\.[^/.]+$/, "");
-                    if (detectedGrade && detectedClassNum) className = `${detectedGrade}年${detectedClassNum}班 (匯入)`;
+                    if (detectedGrade && detectedClassNum) {
+                        className = `${detectedGrade}年${detectedClassNum}班 (匯入)`;
+                    }
                     db.classes[newId] = { name: className, grade: detectedGrade, classNum: detectedClassNum, students: importedStudents };
-                    switchClass(newId); showClassManager.value = false;
-                    alert(detectedGrade ? `匯入成功！${detectedGrade}年${detectedClassNum}班。` : '匯入成功！請手動設定年級。');
+                    switchClass(newId); 
+                    showClassManager.value = false;
+                    alert(detectedGrade && detectedClassNum ? `匯入成功！${detectedGrade}年${detectedClassNum}班，共 ${importedStudents.length} 位學生。` : '匯入成功！請手動設定年級與班序。');
                 };
-                reader.readAsBinaryString(file); e.target.value = '';
+                reader.readAsBinaryString(file); 
+                e.target.value = '';
             };
             
             const resetCurrentClass = () => { if(confirm('清空？')) { db.classes[db.activeClassId].students = []; currentIdx.value = -1; } };
@@ -833,8 +916,8 @@
                 db, showClassManager, newClassName, newClassCount, currentClassData, showCloudModal, gasUrl, isSyncing, syncStatus,
                 newGrade, newClassNum, isSidebarOpen, activeTab,
                 BEHAVIOR_CONFIG, BEHAVIOR_OPTIONS,
-                createNewClass, switchClass, deleteClass, handleImportExcel, resetCurrentClass, selectStudent, addTag, generateComment, exportToExcel, copyResult, uploadToCloud, downloadFromCloud,
-                setDefaultBehavior
+                createNewClass, editClass, updateClass, cancelEdit, switchClass, deleteClass, handleImportExcel, resetCurrentClass, selectStudent, addTag, generateComment, exportToExcel, copyResult, uploadToCloud, downloadFromCloud,
+                setDefaultBehavior, editingClassId
             };
         }
     }).mount('#app');
