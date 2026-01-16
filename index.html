@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>喵嗚評語助手 V7.2</title>
+    <title>喵嗚評語助手 V7.4</title>
     <script src="config.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -387,10 +387,38 @@ function doGet(e) {
                     <div v-show="activeTab === 'comment'" class="p-4 md:p-6">
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                             <div class="flex flex-col gap-4">
-                                <div class="bg-[#FFF8F0] p-4 rounded-3xl border-2 border-[#FFE0B2]">
-                                    <div class="text-xs font-bold text-[#8D6E63] mb-2 uppercase tracking-wider flex items-center gap-1"><span>🐾</span> 快速標籤</div>
-                                    <div class="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                                <div class="p-4 rounded-3xl border-2 transition-all" :class="isEditingTags ? 'bg-gray-100 border-dashed border-gray-400' : 'bg-[#FFF8F0] border-[#FFE0B2]'">
+                                    <div class="text-xs font-bold text-[#8D6E63] mb-2 uppercase tracking-wider flex items-center justify-between">
+                                        <div class="flex items-center gap-1"><span>🐾</span> 快速標籤</div>
+                                        <button @click="isEditingTags = !isEditingTags" 
+                                                class="px-2 py-0.5 text-xs rounded-full transition-all"
+                                                :class="isEditingTags ? 'bg-[#FFB74D] text-white' : 'bg-white text-[#8D6E63] hover:bg-[#FFE0B2]'">
+                                            {{ isEditingTags ? '✓ 完成' : '⚙️ 編輯' }}
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- 一般模式：點擊加入評語 -->
+                                    <div v-if="!isEditingTags" class="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                                         <button v-for="tag in currentTags" :key="tag" @click="addTag(tag)" class="px-2 py-1 md:px-3 text-xs md:text-sm bg-white hover:bg-[#FFE0B2] hover:text-[#5D4037] text-[#8D6E63] rounded-full border-2 border-[#FFE0B2] transition-colors">{{ tag }}</button>
+                                    </div>
+                                    
+                                    <!-- 編輯模式：可刪除與新增 -->
+                                    <div v-else class="space-y-3">
+                                        <div class="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                                            <button v-for="(tag, idx) in currentTags" :key="idx" @click="removeCustomTag(idx)" 
+                                                    class="px-2 py-1 md:px-3 text-xs md:text-sm bg-red-50 hover:bg-red-100 text-red-600 rounded-full border-2 border-red-300 transition-colors group flex items-center gap-1">
+                                                <span>{{ tag }}</span>
+                                                <span class="text-red-400 group-hover:text-red-600">✕</span>
+                                            </button>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <input type="text" v-model="newTagInput" @keyup.enter="addCustomTag" placeholder="輸入新標籤..." 
+                                                   class="flex-1 px-3 py-1.5 text-sm border-2 border-[#FFE0B2] rounded-full focus:border-[#FFB74D] focus:ring-2 focus:ring-[#FFE0B2]/50 outline-none">
+                                            <button @click="addCustomTag" class="px-3 py-1.5 bg-[#FFB74D] hover:bg-[#FFA726] text-white text-sm font-bold rounded-full transition">+ 新增</button>
+                                        </div>
+                                        <button @click="resetTags" class="w-full py-1.5 text-xs text-[#8D6E63] hover:text-[#5D4037] hover:bg-white rounded-full border border-dashed border-[#C5A89E] transition">
+                                            ↺ 還原預設標籤 ({{ selectedSubject }})
+                                        </button>
                                     </div>
                                 </div>
                                 <div class="flex-1 flex flex-col bg-white rounded-3xl shadow-sm border-2 border-[#FFE0B2] overflow-hidden min-h-[200px]">
@@ -402,29 +430,56 @@ function doGet(e) {
                                 </div>
                             </div>
                             <div class="flex flex-col gap-4">
-                                <div class="bg-white p-4 rounded-3xl shadow-sm border-2 border-[#FFCC80] relative overflow-hidden">
-                                    <div class="absolute top-0 right-0 bg-[#C5A89E] text-white text-[10px] md:text-xs px-2 py-1 rounded-bl-2xl font-bold">學籍卡評語 (嚴謹)</div>
-                                    <div class="text-center py-2 flex items-center justify-center min-h-[3rem]">
-                                        <input type="text" v-model="currentStudent.motto" 
-                                               placeholder="等待生成或自行輸入..." 
-                                               class="w-full text-lg md:text-xl font-bold text-[#5D4037] tracking-widest font-serif text-center bg-transparent outline-none placeholder-[#C5A89E]">
-                                    </div>
-                                </div>
-                                <div class="flex-1 flex flex-col bg-white rounded-3xl shadow-lg border-2 border-[#FFCC80] overflow-hidden relative ring-1 ring-[#FFE0B2] min-h-[250px]">
-                                    <div class="p-3 bg-gradient-to-r from-[#FFF8F0] to-white border-b border-[#FFCC80] flex justify-between items-center">
-                                        <h3 class="font-bold text-[#5D4037] flex items-center gap-2 text-sm md:text-base"><span>✨</span> 老師評語 (暖心)</h3>
-                                        <button v-if="currentStudent.polished_comment" @click="copyResult" class="text-xs text-[#8D6E63] font-bold hover:bg-[#FFF3E0] px-2 py-1 rounded-2xl transition">複製</button>
-                                    </div>
-                                    <textarea v-model="currentStudent.polished_comment" class="flex-1 w-full p-4 md:p-6 resize-none focus:outline-none text-[#5D4037] leading-relaxed bg-white text-sm md:text-base" placeholder="貓貓生成的暖心評語將顯示於此..."></textarea>
-                                    <div class="absolute bottom-4 right-4 md:bottom-6 md:right-6 z-10">
-                                    <button @click="generateComment" :disabled="isGenerating || !apiKey" 
-                                            class="flex items-center justify-center gap-2 px-6 py-3 md:px-8 md:py-4 rounded-full shadow-xl transition-all transform active:scale-95 md:hover:scale-110 disabled:opacity-80 disabled:cursor-not-allowed disabled:transform-none text-white font-bold text-sm md:text-base" 
-                                            :class="!apiKey ? 'bg-[#C5A89E]' : 'bg-[#FFB74D] hover:bg-[#FFA726]'">
-                                            <span v-if="!apiKey">🚫 缺 Key</span>
-                                            <span v-else-if="isGenerating">🐾 思考中...</span>
-                                            <span v-else>🐾 幫我寫</span>
+                                <!-- 學籍卡評語區塊 (含鎖定按鈕) -->
+                                <div class="bg-white p-4 rounded-3xl shadow-sm border-2 transition-all" :class="currentStudent.locked_motto ? 'border-red-300 bg-red-50/30' : 'border-[#FFCC80]'">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-[10px] md:text-xs font-bold text-[#C5A89E] uppercase">學籍卡評語 (嚴謹)</span>
+                                        <button @click="currentStudent.locked_motto = !currentStudent.locked_motto" 
+                                                class="text-sm px-2 py-0.5 rounded-full transition-all"
+                                                :class="currentStudent.locked_motto ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'"
+                                                :title="currentStudent.locked_motto ? '已鎖定：AI 不會覆寫此欄位' : '未鎖定：AI 可覆寫此欄位'">
+                                            {{ currentStudent.locked_motto ? '🔒' : '🔓' }}
                                         </button>
                                     </div>
+                                    <div class="text-center flex items-center justify-center min-h-[3rem]">
+                                        <input type="text" v-model="currentStudent.motto" 
+                                               placeholder="等待生成或自行輸入..." 
+                                               :readonly="currentStudent.locked_motto"
+                                               class="w-full text-lg md:text-xl font-bold text-[#5D4037] tracking-widest font-serif text-center outline-none placeholder-[#C5A89E] transition-all"
+                                               :class="currentStudent.locked_motto ? 'bg-gray-100 cursor-not-allowed' : 'bg-transparent'">
+                                    </div>
+                                </div>
+                                
+                                <!-- 老師評語區塊 (含鎖定按鈕) -->
+                                <div class="flex-1 flex flex-col bg-white rounded-3xl shadow-lg border-2 overflow-hidden ring-1 ring-[#FFE0B2] min-h-[200px] transition-all" :class="currentStudent.locked_comment ? 'border-red-300' : 'border-[#FFCC80]'">
+                                    <div class="p-3 bg-gradient-to-r from-[#FFF8F0] to-white border-b border-[#FFCC80] flex justify-between items-center">
+                                        <h3 class="font-bold text-[#5D4037] flex items-center gap-2 text-sm md:text-base"><span>✨</span> 老師評語 (暖心)</h3>
+                                        <div class="flex items-center gap-2">
+                                            <button v-if="currentStudent.polished_comment" @click="copyResult" class="text-xs text-[#8D6E63] font-bold hover:bg-[#FFF3E0] px-2 py-1 rounded-2xl transition">複製</button>
+                                            <button @click="currentStudent.locked_comment = !currentStudent.locked_comment" 
+                                                    class="text-sm px-2 py-0.5 rounded-full transition-all"
+                                                    :class="currentStudent.locked_comment ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'"
+                                                    :title="currentStudent.locked_comment ? '已鎖定：AI 不會覆寫此欄位' : '未鎖定：AI 可覆寫此欄位'">
+                                                {{ currentStudent.locked_comment ? '🔒' : '🔓' }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <textarea v-model="currentStudent.polished_comment" 
+                                              :readonly="currentStudent.locked_comment"
+                                              class="flex-1 w-full p-4 md:p-6 resize-none focus:outline-none text-[#5D4037] leading-relaxed text-sm md:text-base transition-all" 
+                                              :class="currentStudent.locked_comment ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'"
+                                              placeholder="貓貓生成的暖心評語將顯示於此..."></textarea>
+                                </div>
+                                
+                                <!-- V7.4: Action Bar (按鈕獨立區域) -->
+                                <div class="flex justify-end">
+                                    <button @click="generateComment" :disabled="isGenerating || !apiKey" 
+                                            class="flex items-center justify-center gap-2 px-6 py-3 md:px-8 md:py-4 rounded-full shadow-xl transition-all transform active:scale-95 md:hover:scale-105 disabled:opacity-80 disabled:cursor-not-allowed disabled:transform-none text-white font-bold text-sm md:text-base" 
+                                            :class="!apiKey ? 'bg-[#C5A89E]' : 'bg-[#FFB74D] hover:bg-[#FFA726]'">
+                                        <span v-if="!apiKey">🚫 缺 Key</span>
+                                        <span v-else-if="isGenerating">🐾 思考中...</span>
+                                        <span v-else>🐾 幫我寫</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -551,7 +606,8 @@ function doGet(e) {
             const showWelcomeWizard = ref(false); // 新手引導精靈
             const wizardStep = ref(1); // 引導步驟 1-3
             const wizardApiKey = ref(''); // 引導中輸入的 API Key
-            const tagsDB = {
+            // V7.3: 預設標籤常數 (作為備份與初始化用)
+            const DEFAULT_TAGS = {
                 '一般導師': ['熱心助人', '負責盡職', '活潑外向', '人緣極佳', '沉默寡言', '專注力佳', '容易分心', '作業優良', '需加強整潔', '禮貌周到', '愛惜公物', '樂於分享'],
                 '國語文': ['字跡工整', '喜愛閱讀', '朗讀流暢', '語意表達佳', '成語運用豐富', '寫作具創意', '字音字形需加強'],
                 '數學': ['邏輯清晰', '計算細心', '理解力強', '解題速度快', '粗心大意', '空間概念佳', '運算需加強'],
@@ -561,6 +617,8 @@ function doGet(e) {
                 '自然科學': ['觀察入微', '勇於實驗', '喜愛發問', '邏輯推演', '紀錄詳實'],
                 '社會': ['關懷環境', '具備國際觀', '尊重多元', '樂於討論', '具備公民素養']
             };
+            const isEditingTags = ref(false); // V7.3: 標籤編輯模式
+            const newTagInput = ref(''); // V7.3: 新增標籤輸入框
             const MODEL_CANDIDATES = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-flash-latest'];
             
             // 行為量表配置
@@ -614,7 +672,13 @@ function doGet(e) {
             const BEHAVIOR_OPTIONS = ['完全符合', '大部分符合', '部分符合', '待改進'];
 
             // Computed
-            const currentTags = computed(() => tagsDB[selectedSubject.value] || tagsDB['一般導師']);
+            // V7.3: 從 db.customTags 讀取自定義標籤
+            const currentTags = computed(() => {
+                if (db.customTags && db.customTags[selectedSubject.value]) {
+                    return db.customTags[selectedSubject.value];
+                }
+                return DEFAULT_TAGS[selectedSubject.value] || DEFAULT_TAGS['一般導師'];
+            });
             const currentClassData = computed(() => db.classes[db.activeClassId] || { name: '未知班級', students: [], grade: '', classNum: '' });
             const filteredStudents = computed(() => {
                 const students = currentClassData.value.students || [];
@@ -673,6 +737,10 @@ function doGet(e) {
                     if (student.records.specialPerformanceExternal === undefined) student.records.specialPerformanceExternal = '';
                 }
                 
+                // V7.4: 鎖定狀態初始化
+                if (student.locked_comment === undefined) student.locked_comment = false;
+                if (student.locked_motto === undefined) student.locked_motto = false;
+                
                 return student;
             };
 
@@ -705,6 +773,11 @@ function doGet(e) {
                     db.activeClassId = db.activeClassId; // 觸發 reactive 更新
                 } else {
                     showClassManager.value = true;
+                }
+                
+                // V7.3: 初始化自定義標籤 (若不存在則使用預設值)
+                if (!db.customTags) {
+                    db.customTags = JSON.parse(JSON.stringify(DEFAULT_TAGS));
                 }
             });
 
@@ -965,6 +1038,33 @@ function doGet(e) {
             const resetCurrentClass = () => { if(confirm('清空？')) { db.classes[db.activeClassId].students = []; currentIdx.value = -1; } };
             const addTag = (tag) => { if (currentStudent.value) currentStudent.value.raw_comment += (currentStudent.value.raw_comment ? '、' : '') + tag; };
             
+            // V7.3: 自定義標籤方法
+            const addCustomTag = () => {
+                const tagName = newTagInput.value.trim();
+                if (!tagName) return;
+                if (!db.customTags) db.customTags = JSON.parse(JSON.stringify(DEFAULT_TAGS));
+                if (!db.customTags[selectedSubject.value]) {
+                    db.customTags[selectedSubject.value] = [...(DEFAULT_TAGS[selectedSubject.value] || [])];
+                }
+                if (!db.customTags[selectedSubject.value].includes(tagName)) {
+                    db.customTags[selectedSubject.value].push(tagName);
+                }
+                newTagInput.value = '';
+            };
+            const removeCustomTag = (index) => {
+                if (!db.customTags || !db.customTags[selectedSubject.value]) return;
+                const tagName = db.customTags[selectedSubject.value][index];
+                if (confirm(`確定要刪除標籤「${tagName}」嗎？`)) {
+                    db.customTags[selectedSubject.value].splice(index, 1);
+                }
+            };
+            const resetTags = () => {
+                if (confirm(`確定要將「${selectedSubject.value}」的標籤還原為預設值嗎？`)) {
+                    if (!db.customTags) db.customTags = {};
+                    db.customTags[selectedSubject.value] = [...(DEFAULT_TAGS[selectedSubject.value] || [])];
+                }
+            };
+            
             // 一鍵預設行為量表
             const setDefaultBehavior = () => {
                 if (!currentStudent.value) return;
@@ -984,18 +1084,33 @@ function doGet(e) {
                 if (!currentStudent.value.name) { alert('請輸入姓名'); return; }
                 if (!currentStudent.value.raw_comment) { alert('請輸入紀錄'); return; }
                 
-                // V7.2 新增：覆蓋確認機制
-                if (currentStudent.value.polished_comment || currentStudent.value.motto) {
-                    if (!confirm('⚠️ 該生已有評語資料，確定要重新生成並覆蓋嗎？')) {
-                        return;
-                    }
+                // V7.4: 檢查鎖定狀態
+                const isCommentLocked = currentStudent.value.locked_comment;
+                const isMottoLocked = currentStudent.value.locked_motto;
+                
+                if (isCommentLocked && isMottoLocked) {
+                    alert('⚠️ 評語與箴言皆已鎖定，無法生成！請先解鎖欲修改的欄位。');
+                    return;
                 }
                 
                 // 2. 設定狀態與逾時控制器
                 isGenerating.value = true;
-                currentStudent.value.polished_comment = "🐾 貓貓思考中...";
+                const originalComment = currentStudent.value.polished_comment; // 保留原始內容
+                if (!isCommentLocked) {
+                    currentStudent.value.polished_comment = "🐾 貓貓思考中...";
+                }
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒逾時設定
+
+                // V7.4: 根據鎖定狀態動態調整任務說明
+                let taskInstruction = '';
+                if (isCommentLocked && !isMottoLocked) {
+                    taskInstruction = '⚠️ 任務限制：使用者已鎖定「comment」欄位，請**僅生成 motto (八字箴言)**，comment 欄位請回傳空字串。';
+                } else if (!isCommentLocked && isMottoLocked) {
+                    taskInstruction = '⚠️ 任務限制：使用者已鎖定「motto」欄位，請**僅生成 comment (暖心評語)**，motto 欄位請回傳空字串。';
+                } else {
+                    taskInstruction = '請同時生成 comment 與 motto。';
+                }
 
                 // 3. 精心設計的 Prompt (切勿精簡此段)
                 const prompt = `
@@ -1006,6 +1121,8 @@ function doGet(e) {
                     輸入資料：
                     - 學生姓名：${currentStudent.value.name}
                     - 觀察紀錄：${currentStudent.value.raw_comment}
+                    
+                    ${taskInstruction}
                     
                     任務：請根據「觀察紀錄」進行分析，並輸出 JSON 格式結果。
                     
@@ -1023,8 +1140,8 @@ function doGet(e) {
                     輸出格式 (JSON)：
                     {
                         "analysis": "請輸出你的判斷：(A)全優 / (B)半優半缺 / (C)多缺點",
-                        "comment": "給學生的暖心評語 (70-100字，三明治法，將缺點轉化為期待)",
-                        "motto": "給校方的八字箴言 (嚴格遵守上述邏輯，四字，四字)"
+                        "comment": "給學生的暖心評語 (70-100字，三明治法，將缺點轉化為期待)，若被要求略過則填空字串",
+                        "motto": "給校方的八字箴言 (嚴格遵守上述邏輯，四字，四字)，若被要求略過則填空字串"
                     }
                     
                     範例參考：
@@ -1051,9 +1168,15 @@ function doGet(e) {
                                 .trim();
                             const result = JSON.parse(text);
                             
-                            // 更新資料
-                            currentStudent.value.polished_comment = result.comment; 
-                            currentStudent.value.motto = result.motto;
+                            // V7.4: 只更新未鎖定的欄位
+                            if (!isCommentLocked && result.comment) {
+                                currentStudent.value.polished_comment = result.comment;
+                            } else if (!isCommentLocked) {
+                                currentStudent.value.polished_comment = originalComment || ''; // 還原或清空
+                            }
+                            if (!isMottoLocked && result.motto) {
+                                currentStudent.value.motto = result.motto;
+                            }
                             success = true;
                             break; // 成功則跳出迴圈
                         }
@@ -1066,7 +1189,10 @@ function doGet(e) {
                 // 5. 收尾與狀態重置
                 clearTimeout(timeoutId); // 清除計時器
                 if (!success) {
-                    currentStudent.value.polished_comment = "❌ 生成失敗或連線逾時，請再試一次。";
+                    // V7.4: 失敗時還原原始內容
+                    if (!isCommentLocked) {
+                        currentStudent.value.polished_comment = originalComment || "❌ 生成失敗或連線逾時，請再試一次。";
+                    }
                     alert('貓貓想太久了(超過15秒)或是網路不穩，請再按一次「幫我寫」！');
                 }
                 isGenerating.value = false;
@@ -1245,6 +1371,7 @@ function doGet(e) {
                 db, showClassManager, newClassName, newClassCount, currentClassData, showCloudModal, gasUrl, gasSecret, isSyncing, syncStatus,
                 newGrade, newClassNum, isSidebarOpen, activeTab,
                 BEHAVIOR_CONFIG, BEHAVIOR_OPTIONS,
+                isEditingTags, newTagInput, addCustomTag, removeCustomTag, resetTags,
                 createNewClass, editClass, updateClass, cancelEdit, switchClass, deleteClass, handleImportExcel, resetCurrentClass, selectStudent, addTag, generateComment, exportToExcel, copyResult, copyGasCode, clearAllData, uploadToCloud, downloadFromCloud,
                 setDefaultBehavior, editingClassId,
                 showWelcomeWizard, wizardStep, wizardApiKey, nextWizardStep, prevWizardStep, completeWizard, skipWizard, openWizard
