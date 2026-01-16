@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>喵嗚評語助手 V7.4</title>
+    <title>喵嗚評語助手 V7.4.1</title>
     <script src="config.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -385,9 +385,10 @@ function doGet(e) {
 
                     <!-- Tab 1: 評語生成 -->
                     <div v-show="activeTab === 'comment'" class="p-4 md:p-6">
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 lg:min-h-[480px]">
+                            <!-- 左欄：快速標籤 + 觀察紀錄 -->
                             <div class="flex flex-col gap-4">
-                                <div class="p-4 rounded-3xl border-2 transition-all" :class="isEditingTags ? 'bg-gray-100 border-dashed border-gray-400' : 'bg-[#FFF8F0] border-[#FFE0B2]'">
+                                <div class="p-4 rounded-3xl border-2 transition-all shrink-0" :class="isEditingTags ? 'bg-gray-100 border-dashed border-gray-400' : 'bg-[#FFF8F0] border-[#FFE0B2]'">
                                     <div class="text-xs font-bold text-[#8D6E63] mb-2 uppercase tracking-wider flex items-center justify-between">
                                         <div class="flex items-center gap-1"><span>🐾</span> 快速標籤</div>
                                         <button @click="isEditingTags = !isEditingTags" 
@@ -421,38 +422,41 @@ function doGet(e) {
                                         </button>
                                     </div>
                                 </div>
-                                <div class="flex-1 flex flex-col bg-white rounded-3xl shadow-sm border-2 border-[#FFE0B2] overflow-hidden min-h-[200px]">
-                                    <div class="p-3 bg-[#FFF3E0] border-b border-[#FFCC80] flex justify-between items-center">
+                                <!-- 觀察紀錄：flex-1 填滿剩餘空間 -->
+                                <div class="flex-1 flex flex-col bg-white rounded-3xl shadow-sm border-2 border-[#FFE0B2] overflow-hidden min-h-[200px] lg:min-h-0">
+                                    <div class="p-3 bg-[#FFF3E0] border-b border-[#FFCC80] flex justify-between items-center shrink-0">
                                         <h3 class="font-bold text-[#5D4037] flex items-center gap-2 text-sm md:text-base"><span>📝</span> 觀察紀錄</h3>
                                         <button @click="currentStudent.raw_comment = ''" class="text-xs text-[#8D6E63] hover:text-red-500">清空</button>
                                     </div>
                                     <textarea v-model="currentStudent.raw_comment" class="flex-1 w-full p-4 resize-none focus:outline-none text-[#5D4037] leading-relaxed placeholder-[#C5A89E] bg-transparent text-sm md:text-base" placeholder="請輸入觀察紀錄..."></textarea>
                                 </div>
                             </div>
+                            
+                            <!-- 右欄：學籍卡評語 + 老師評語 -->
                             <div class="flex flex-col gap-4">
-                                <!-- 學籍卡評語區塊 (含鎖定按鈕) -->
-                                <div class="bg-white p-4 rounded-3xl shadow-sm border-2 transition-all" :class="currentStudent.locked_motto ? 'border-red-300 bg-red-50/30' : 'border-[#FFCC80]'">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <span class="text-[10px] md:text-xs font-bold text-[#C5A89E] uppercase">學籍卡評語 (嚴謹)</span>
+                                <!-- 學籍卡評語區塊 (含鎖定按鈕) - V7.4.1 美化標題 -->
+                                <div class="bg-white p-4 rounded-3xl shadow-sm border-2 transition-all relative overflow-hidden shrink-0" :class="currentStudent.locked_motto ? 'border-red-300 bg-red-50/30' : 'border-[#FFCC80]'">
+                                    <div class="absolute top-0 right-0 flex items-center">
                                         <button @click="currentStudent.locked_motto = !currentStudent.locked_motto" 
-                                                class="text-sm px-2 py-0.5 rounded-full transition-all"
-                                                :class="currentStudent.locked_motto ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'"
+                                                class="px-2 py-1 text-sm transition-all"
+                                                :class="currentStudent.locked_motto ? 'text-red-500' : 'text-gray-400 hover:text-gray-600'"
                                                 :title="currentStudent.locked_motto ? '已鎖定：AI 不會覆寫此欄位' : '未鎖定：AI 可覆寫此欄位'">
                                             {{ currentStudent.locked_motto ? '🔒' : '🔓' }}
                                         </button>
+                                        <div class="bg-[#C5A89E] text-white text-[10px] md:text-xs px-2 py-1 rounded-bl-2xl font-bold">學籍卡評語 (嚴謹)</div>
                                     </div>
-                                    <div class="text-center flex items-center justify-center min-h-[3rem]">
+                                    <div class="text-center flex items-center justify-center min-h-[3rem] pt-4">
                                         <input type="text" v-model="currentStudent.motto" 
                                                placeholder="等待生成或自行輸入..." 
                                                :readonly="currentStudent.locked_motto"
                                                class="w-full text-lg md:text-xl font-bold text-[#5D4037] tracking-widest font-serif text-center outline-none placeholder-[#C5A89E] transition-all"
-                                               :class="currentStudent.locked_motto ? 'bg-gray-100 cursor-not-allowed' : 'bg-transparent'">
+                                               :class="currentStudent.locked_motto ? 'bg-gray-100 cursor-not-allowed rounded-xl' : 'bg-transparent'">
                                     </div>
                                 </div>
                                 
-                                <!-- 老師評語區塊 (含鎖定按鈕) -->
-                                <div class="flex-1 flex flex-col bg-white rounded-3xl shadow-lg border-2 overflow-hidden ring-1 ring-[#FFE0B2] min-h-[200px] transition-all" :class="currentStudent.locked_comment ? 'border-red-300' : 'border-[#FFCC80]'">
-                                    <div class="p-3 bg-gradient-to-r from-[#FFF8F0] to-white border-b border-[#FFCC80] flex justify-between items-center">
+                                <!-- 老師評語區塊 (含鎖定按鈕 + 懸浮按鈕) - flex-1 填滿剩餘空間 -->
+                                <div class="flex-1 flex flex-col bg-white rounded-3xl shadow-lg border-2 overflow-hidden ring-1 ring-[#FFE0B2] min-h-[250px] lg:min-h-0 transition-all relative" :class="currentStudent.locked_comment ? 'border-red-300' : 'border-[#FFCC80]'">
+                                    <div class="p-3 bg-gradient-to-r from-[#FFF8F0] to-white border-b border-[#FFCC80] flex justify-between items-center shrink-0">
                                         <h3 class="font-bold text-[#5D4037] flex items-center gap-2 text-sm md:text-base"><span>✨</span> 老師評語 (暖心)</h3>
                                         <div class="flex items-center gap-2">
                                             <button v-if="currentStudent.polished_comment" @click="copyResult" class="text-xs text-[#8D6E63] font-bold hover:bg-[#FFF3E0] px-2 py-1 rounded-2xl transition">複製</button>
@@ -464,22 +468,22 @@ function doGet(e) {
                                             </button>
                                         </div>
                                     </div>
+                                    <!-- V7.4.1: pb-20 防止按鈕遮擋文字 -->
                                     <textarea v-model="currentStudent.polished_comment" 
                                               :readonly="currentStudent.locked_comment"
-                                              class="flex-1 w-full p-4 md:p-6 resize-none focus:outline-none text-[#5D4037] leading-relaxed text-sm md:text-base transition-all" 
+                                              class="flex-1 w-full p-4 md:p-6 pb-20 resize-none focus:outline-none text-[#5D4037] leading-relaxed text-sm md:text-base transition-all" 
                                               :class="currentStudent.locked_comment ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'"
                                               placeholder="貓貓生成的暖心評語將顯示於此..."></textarea>
-                                </div>
-                                
-                                <!-- V7.4: Action Bar (按鈕獨立區域) -->
-                                <div class="flex justify-end">
-                                    <button @click="generateComment" :disabled="isGenerating || !apiKey" 
-                                            class="flex items-center justify-center gap-2 px-6 py-3 md:px-8 md:py-4 rounded-full shadow-xl transition-all transform active:scale-95 md:hover:scale-105 disabled:opacity-80 disabled:cursor-not-allowed disabled:transform-none text-white font-bold text-sm md:text-base" 
-                                            :class="!apiKey ? 'bg-[#C5A89E]' : 'bg-[#FFB74D] hover:bg-[#FFA726]'">
-                                        <span v-if="!apiKey">🚫 缺 Key</span>
-                                        <span v-else-if="isGenerating">🐾 思考中...</span>
-                                        <span v-else>🐾 幫我寫</span>
-                                    </button>
+                                    <!-- V7.4.1: 懸浮按鈕恢復至右下角 -->
+                                    <div class="absolute bottom-4 right-4 md:bottom-6 md:right-6 z-10">
+                                        <button @click="generateComment" :disabled="isGenerating || !apiKey" 
+                                                class="flex items-center justify-center gap-2 px-6 py-3 md:px-8 md:py-4 rounded-full shadow-xl transition-all transform active:scale-95 md:hover:scale-110 disabled:opacity-80 disabled:cursor-not-allowed disabled:transform-none text-white font-bold text-sm md:text-base" 
+                                                :class="!apiKey ? 'bg-[#C5A89E]' : 'bg-[#FFB74D] hover:bg-[#FFA726]'">
+                                            <span v-if="!apiKey">🚫 缺 Key</span>
+                                            <span v-else-if="isGenerating">🐾 思考中...</span>
+                                            <span v-else>🐾 幫我寫</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
