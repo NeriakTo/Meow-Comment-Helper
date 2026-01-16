@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>喵嗚評語助手 V7.0</title>
+    <title>喵嗚評語助手 V7.1</title>
     <script src="config.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -86,7 +86,12 @@
                     </p>
                     <input type="text" v-model="wizardApiKey" 
                            placeholder="AIza... 開頭的密碼"
-                           class="w-full px-4 py-3 text-center text-[#5D4037] rounded-2xl bg-white border-2 border-[#FFE0B2] focus:border-[#FFB74D] focus:ring-4 focus:ring-[#FFE0B2]/50 shadow-sm text-sm md:text-base mb-4 font-mono">
+                           class="w-full px-4 py-3 text-center text-[#5D4037] rounded-2xl bg-white border-2 border-[#FFE0B2] focus:border-[#FFB74D] focus:ring-4 focus:ring-[#FFE0B2]/50 shadow-sm text-sm md:text-base mb-3 font-mono">
+                    <!-- 公用電腦模式 Checkbox -->
+                    <label class="flex items-center justify-center gap-2 text-sm text-[#8D6E63] mb-4 cursor-pointer select-none">
+                        <input type="checkbox" v-model="isPublicMode" class="w-4 h-4 accent-[#FFB74D] rounded">
+                        <span>💻 此為公用電腦 (不儲存金鑰)</span>
+                    </label>
                     <div class="flex gap-3 mb-4">
                         <button @click="prevWizardStep" 
                                 class="flex-1 py-3 bg-[#FFE0B2] hover:bg-[#FFCC80] text-[#8D6E63] font-bold rounded-2xl transition-all">
@@ -134,10 +139,17 @@
                                 <p class="font-bold mb-2">📋 Step 1：複製程式碼</p>
                                 <p class="mb-2">請先複製以下這段程式碼：</p>
                                 <div class="relative">
-                                    <pre class="bg-white border-2 border-[#FFE0B2] rounded-xl p-3 text-xs overflow-x-auto font-mono text-[#5D4037] whitespace-pre-wrap">function doPost(e) {
+                                    <pre class="bg-white border-2 border-[#FFE0B2] rounded-xl p-3 text-xs overflow-x-auto font-mono text-[#5D4037] whitespace-pre-wrap">// ⚠️ 請將下方 "meow1234" 改為自訂密語！
+var SECRET = "meow1234";
+
+function doPost(e) {
+  var payload = JSON.parse(e.postData.contents);
+  // 驗證通關密語
+  if (payload.secret !== SECRET) {
+    return ContentService.createTextOutput(JSON.stringify({"result":"error","message":"密語錯誤"})).setMimeType(ContentService.MimeType.JSON);
+  }
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var data = JSON.parse(e.postData.contents);
-  sheet.getRange("A1").setValue(JSON.stringify(data));
+  sheet.getRange("A1").setValue(JSON.stringify(payload.data));
   return ContentService.createTextOutput(JSON.stringify({"result":"success"})).setMimeType(ContentService.MimeType.JSON);
 }
 function doGet(e) {
@@ -175,11 +187,24 @@ function doGet(e) {
                         <label class="text-sm font-bold text-[#8D6E63] uppercase">您的 Google Script 網址 (GAS URL)</label>
                         <input type="text" v-model="gasUrl" placeholder="請貼上 https://script.google.com/.../exec" class="w-full p-3 border-2 rounded-2xl text-sm bg-white focus:ring-4 focus:ring-[#FFE0B2]/50 outline-none transition-all border-[#FFE0B2] focus:border-[#FFB74D]" :class="gasUrl ? '' : 'border-red-300'">
                     </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-bold text-[#8D6E63] uppercase flex items-center gap-2">🔐 通關密語 (Secret Token)</label>
+                        <input type="password" v-model="gasSecret" placeholder="預設: meow1234 (建議自訂)" class="w-full p-3 border-2 rounded-2xl text-sm bg-white focus:ring-4 focus:ring-[#FFE0B2]/50 outline-none transition-all border-[#FFE0B2] focus:border-[#FFB74D]">
+                        <p class="text-xs text-[#C5A89E]">⚠️ 此密語須與 GAS 後端程式碼中的密語一致，才能成功同步。</p>
+                    </div>
                     <div class="grid grid-cols-2 gap-4">
                         <button @click="uploadToCloud" :disabled="!gasUrl || isSyncing" class="flex flex-col items-center justify-center p-4 rounded-3xl border-2 border-[#FFE0B2] hover:bg-[#FFF3E0] transition gap-2 disabled:opacity-50"><span class="text-3xl">⬆️</span><span class="font-bold text-[#5D4037]">上傳備份</span></button>
                         <button @click="downloadFromCloud" :disabled="!gasUrl || isSyncing" class="flex flex-col items-center justify-center p-4 rounded-3xl border-2 border-[#FFE0B2] hover:bg-[#FFF3E0] transition gap-2 disabled:opacity-50"><span class="text-3xl">⬇️</span><span class="font-bold text-[#5D4037]">下載還原</span></button>
                     </div>
                     <div v-if="syncStatus" class="text-center text-sm font-bold p-3 rounded-3xl transition-all" :class="syncStatus.includes('成功') ? 'bg-green-100 text-green-700' : (syncStatus.includes('失敗') ? 'bg-red-100 text-red-700' : 'bg-[#FFF3E0] text-[#8D6E63]')">{{ syncStatus }}</div>
+                    
+                    <!-- V7.1 資安：一鍵清除敏感資料 -->
+                    <div class="border-t border-[#FFE0B2] pt-4 mt-2">
+                        <button @click="clearAllData" class="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-2xl shadow-md transition-all flex items-center justify-center gap-2">
+                            <span>🗑️</span> 清除所有敏感資料 (Panic Button)
+                        </button>
+                        <p class="text-xs text-[#C5A89E] text-center mt-2">⚠️ 此操作將清除 API Key、GAS 網址、通關密語，並重新整理頁面。</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -294,6 +319,10 @@ function doGet(e) {
                     <div class="flex items-center gap-2">
                         <span class="text-xs font-bold uppercase whitespace-nowrap" :class="apiKey ? 'text-emerald-600' : 'text-red-500'">{{ apiKey ? '🔑 OK' : '🔑 未輸入' }}</span>
                         <input type="password" v-model="apiKey" :disabled="isConfigLoaded" placeholder="API Key..." class="bg-white border-2 rounded-2xl px-2 py-1 w-20 md:w-24 text-sm focus:w-64 transition-all focus:outline-none disabled:bg-[#FFF3E0] border-[#FFE0B2] focus:border-[#FFB74D] focus:ring-4 focus:ring-[#FFE0B2]/50">
+                        <label class="hidden md:flex items-center gap-1 text-xs text-[#8D6E63] cursor-pointer select-none" title="勾選後金鑰不會儲存，重整頁面後需重新輸入">
+                            <input type="checkbox" v-model="isPublicMode" class="w-3 h-3 accent-[#FFB74D] rounded">
+                            <span>💻 公用</span>
+                        </label>
                         <button @click="openWizard" class="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center bg-white text-[#FFB74D] border-2 border-[#FFE0B2] hover:bg-[#FFF3E0] hover:border-[#FFB74D] rounded-full shadow-sm transition font-bold text-sm" title="Gemini API Key 取得教學說明">❓</button>
                     </div>
                 </div>
@@ -382,7 +411,7 @@ function doGet(e) {
                                 </div>
                                 <div class="flex-1 flex flex-col bg-white rounded-3xl shadow-lg border-2 border-[#FFCC80] overflow-hidden relative ring-1 ring-[#FFE0B2] min-h-[250px]">
                                     <div class="p-3 bg-gradient-to-r from-[#FFF8F0] to-white border-b border-[#FFCC80] flex justify-between items-center">
-                                        <h3 class="font-bold text-[#5D4037] flex items-center gap-2 text-sm md:text-base"><span>✨</span> 導師評語 (暖心)</h3>
+                                        <h3 class="font-bold text-[#5D4037] flex items-center gap-2 text-sm md:text-base"><span>✨</span> 老師評語 (暖心)</h3>
                                         <button v-if="currentStudent.polished_comment" @click="copyResult" class="text-xs text-[#8D6E63] font-bold hover:bg-[#FFF3E0] px-2 py-1 rounded-2xl transition">複製</button>
                                     </div>
                                     <textarea v-model="currentStudent.polished_comment" class="flex-1 w-full p-4 md:p-6 resize-none focus:outline-none text-[#5D4037] leading-relaxed bg-white text-sm md:text-base" placeholder="貓貓生成的暖心評語將顯示於此..."></textarea>
@@ -502,10 +531,12 @@ function doGet(e) {
             const newClassNum = ref('');
             const showCloudModal = ref(false);
             const gasUrl = ref('');
+            const gasSecret = ref(''); // V7.1 資安：通關密語
             const isSyncing = ref(false);
             const syncStatus = ref('');
             const apiKey = ref('');
             const isConfigLoaded = ref(false);
+            const isPublicMode = ref(false); // V7.1 資安：公用電腦模式
             const isGenerating = ref(false);
             const selectedSubject = ref('一般導師');
             const searchQuery = ref('');
@@ -658,6 +689,8 @@ function doGet(e) {
                     }
                     const savedGas = localStorage.getItem('gemini_gas_url');
                     if (savedGas) gasUrl.value = savedGas;
+                    const savedSecret = localStorage.getItem('gas_secret');
+                    if (savedSecret) gasSecret.value = savedSecret;
                 }
                 const savedDB = localStorage.getItem('gemini_comments_v4_db');
                 if (savedDB) {
@@ -702,8 +735,14 @@ function doGet(e) {
             };
 
             watch(db, (newVal) => localStorage.setItem('gemini_comments_v4_db', JSON.stringify(newVal)), { deep: true });
-            watch(apiKey, (newVal) => { if (!isConfigLoaded.value) localStorage.setItem('gemini_api_key', newVal); });
+            // V7.1 資安：公用電腦模式下不儲存 API Key
+            watch(apiKey, (newVal) => { 
+                if (!isConfigLoaded.value && !isPublicMode.value) {
+                    localStorage.setItem('gemini_api_key', newVal); 
+                }
+            });
             watch(gasUrl, (newVal) => localStorage.setItem('gemini_gas_url', newVal));
+            watch(gasSecret, (newVal) => localStorage.setItem('gas_secret', newVal)); // V7.1 資安
 
             // Methods
             const selectStudent = (index) => {
@@ -714,10 +753,15 @@ function doGet(e) {
             const uploadToCloud = async () => {
                 isSyncing.value = true; syncStatus.value = '☁️ 上傳中...';
                 try {
-                    const response = await fetch(gasUrl.value, { method: 'POST', body: JSON.stringify(db) });
+                    // V7.1 資安：將 secret 與 data 一起打包傳送
+                    const payload = {
+                        secret: gasSecret.value || 'meow1234', // 預設密語
+                        data: db
+                    };
+                    const response = await fetch(gasUrl.value, { method: 'POST', body: JSON.stringify(payload) });
                     const res = await response.json();
                     if (res.result === 'success') syncStatus.value = `✅ 成功! (${new Date().toLocaleTimeString()})`;
-                    else throw new Error(res.error);
+                    else throw new Error(res.message || res.error || '驗證失敗');
                 } catch (e) { syncStatus.value = '❌ 失敗:' + e.message; } finally { isSyncing.value = false; }
             };
             const downloadFromCloud = async () => {
@@ -1001,6 +1045,14 @@ function doGet(e) {
                 isGenerating.value = false;
             };
 
+            // V7.1 資安：Excel Formula Injection 防護
+            const sanitizeForExcel = (value) => {
+                if (typeof value !== 'string') return value;
+                // 若字串以 =, +, -, @ 開頭，加上單引號防止公式執行
+                if (/^[=+\-@]/.test(value)) return "'" + value;
+                return value;
+            };
+            
             const exportToExcel = () => {
                 JSON.stringify(db); // 觸發 reactive 更新
                 const cls = currentClassData.value;
@@ -1054,34 +1106,34 @@ function doGet(e) {
                 
                 ws_data.push(row1);
                 
-                // Row 2+: 學生資料
+                // Row 2+: 學生資料 (V7.1 資安：所有字串欄位經過消毒處理)
                 processedStudents.forEach(s => {
                     const studentRow = [
                         grade,  // Col A: 年級
                         classNum,  // Col B: 班級編號
                         parseInt(s.id, 10) || 0,  // Col C: 座號
-                        s.name || ''  // Col D: 姓名
+                        sanitizeForExcel(s.name || '')  // Col D: 姓名
                     ];
                     
                     // 5 大類行為指標（每類 5 個子題 + 1 個具體建議）
                     const categories = ['敬愛人', '愛整潔', '守秩序', '有禮貌', '做環保'];
                     categories.forEach(category => {
                         BEHAVIOR_CONFIG[category].items.forEach((_, idx) => {
-                            studentRow.push((s.behavior[category] && s.behavior[category].items[idx]) || '');
+                            studentRow.push(sanitizeForExcel((s.behavior[category] && s.behavior[category].items[idx]) || ''));
                         });
-                        studentRow.push((s.behavior[category] && s.behavior[category].suggestion) || '');
+                        studentRow.push(sanitizeForExcel((s.behavior[category] && s.behavior[category].suggestion) || ''));
                     });
                     
                     // 多元紀錄
-                    studentRow.push(s.records.groupActivity || '');  // Col AI: 團體活動紀錄
-                    studentRow.push(s.records.publicServiceSchool || '');  // Col AJ: 校內服務
-                    studentRow.push(s.records.publicServiceCommunity || '');  // Col AK: 社區服務
-                    studentRow.push(s.records.specialPerformanceSchool || '');  // Col AL: 校內特殊表現
-                    studentRow.push(s.records.specialPerformanceExternal || '');  // Col AM: 校外特殊表現
+                    studentRow.push(sanitizeForExcel(s.records.groupActivity || ''));  // Col AI: 團體活動紀錄
+                    studentRow.push(sanitizeForExcel(s.records.publicServiceSchool || ''));  // Col AJ: 校內服務
+                    studentRow.push(sanitizeForExcel(s.records.publicServiceCommunity || ''));  // Col AK: 社區服務
+                    studentRow.push(sanitizeForExcel(s.records.specialPerformanceSchool || ''));  // Col AL: 校內特殊表現
+                    studentRow.push(sanitizeForExcel(s.records.specialPerformanceExternal || ''));  // Col AM: 校外特殊表現
                     
                     // 評語
-                    studentRow.push(s.polished_comment || '');  // Col AN: 學期成績單導師評語
-                    studentRow.push(s.motto || '');  // Col AO: 學籍卡導師評語
+                    studentRow.push(sanitizeForExcel(s.polished_comment || ''));  // Col AN: 學期成績單導師評語
+                    studentRow.push(sanitizeForExcel(s.motto || ''));  // Col AO: 學籍卡導師評語
                     
                     ws_data.push(studentRow);
                 });
@@ -1127,11 +1179,18 @@ function doGet(e) {
             };
             const copyResult = () => navigator.clipboard.writeText(currentStudent.value.polished_comment);
             
-            // 複製 GAS 程式碼
-            const gasCode = `function doPost(e) {
+            // 複製 GAS 程式碼 (V7.1 含驗證機制)
+            const gasCode = `// ⚠️ 請將下方 "meow1234" 改為自訂密語！
+var SECRET = "meow1234";
+
+function doPost(e) {
+  var payload = JSON.parse(e.postData.contents);
+  // 驗證通關密語
+  if (payload.secret !== SECRET) {
+    return ContentService.createTextOutput(JSON.stringify({"result":"error","message":"密語錯誤"})).setMimeType(ContentService.MimeType.JSON);
+  }
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var data = JSON.parse(e.postData.contents);
-  sheet.getRange("A1").setValue(JSON.stringify(data));
+  sheet.getRange("A1").setValue(JSON.stringify(payload.data));
   return ContentService.createTextOutput(JSON.stringify({"result":"success"})).setMimeType(ContentService.MimeType.JSON);
 }
 function doGet(e) {
@@ -1143,13 +1202,23 @@ function doGet(e) {
                 navigator.clipboard.writeText(gasCode);
                 alert('✅ 程式碼已複製！請前往 Google Apps Script 貼上。');
             };
+            
+            // V7.1 資安：一鍵清除所有敏感資料
+            const clearAllData = () => {
+                if (!confirm('⚠️ 確定要清除所有敏感資料嗎？\n\n將會清除：\n• API Key\n• GAS 網址\n• 通關密語\n\n班級資料不會受到影響。')) return;
+                localStorage.removeItem('gemini_api_key');
+                localStorage.removeItem('gemini_gas_url');
+                localStorage.removeItem('gas_secret');
+                alert('✅ 敏感資料已清除！頁面將重新整理。');
+                location.reload();
+            };
 
             return { 
-                apiKey, isConfigLoaded, students, currentIdx, currentStudent, isGenerating, searchQuery, filteredStudents, selectedSubject, currentTags, 
-                db, showClassManager, newClassName, newClassCount, currentClassData, showCloudModal, gasUrl, isSyncing, syncStatus,
+                apiKey, isConfigLoaded, isPublicMode, students, currentIdx, currentStudent, isGenerating, searchQuery, filteredStudents, selectedSubject, currentTags, 
+                db, showClassManager, newClassName, newClassCount, currentClassData, showCloudModal, gasUrl, gasSecret, isSyncing, syncStatus,
                 newGrade, newClassNum, isSidebarOpen, activeTab,
                 BEHAVIOR_CONFIG, BEHAVIOR_OPTIONS,
-                createNewClass, editClass, updateClass, cancelEdit, switchClass, deleteClass, handleImportExcel, resetCurrentClass, selectStudent, addTag, generateComment, exportToExcel, copyResult, copyGasCode, uploadToCloud, downloadFromCloud,
+                createNewClass, editClass, updateClass, cancelEdit, switchClass, deleteClass, handleImportExcel, resetCurrentClass, selectStudent, addTag, generateComment, exportToExcel, copyResult, copyGasCode, clearAllData, uploadToCloud, downloadFromCloud,
                 setDefaultBehavior, editingClassId,
                 showWelcomeWizard, wizardStep, wizardApiKey, nextWizardStep, prevWizardStep, completeWizard, skipWizard, openWizard
             };
