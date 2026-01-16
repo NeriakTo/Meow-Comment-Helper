@@ -717,7 +717,10 @@ function doGet(e) {
             const completeWizard = () => {
                 if (wizardApiKey.value.trim()) {
                     apiKey.value = wizardApiKey.value.trim();
-                    localStorage.setItem('gemini_api_key', apiKey.value);
+                    // V7.1 資安修復：僅在非公用模式時才儲存 API Key
+                    if (!isPublicMode.value) {
+                        localStorage.setItem('gemini_api_key', apiKey.value);
+                    }
                 }
                 showWelcomeWizard.value = false;
                 wizardStep.value = 1;
@@ -743,6 +746,19 @@ function doGet(e) {
             });
             watch(gasUrl, (newVal) => localStorage.setItem('gemini_gas_url', newVal));
             watch(gasSecret, (newVal) => localStorage.setItem('gas_secret', newVal)); // V7.1 資安
+            
+            // V7.1 資安修復：監聽公用模式切換
+            watch(isPublicMode, (newVal) => {
+                if (newVal) {
+                    // 切換為公用模式：立即移除 localStorage 中的 API Key
+                    localStorage.removeItem('gemini_api_key');
+                } else {
+                    // 切換為私人模式：將目前的 Key 存入 localStorage
+                    if (apiKey.value && !isConfigLoaded.value) {
+                        localStorage.setItem('gemini_api_key', apiKey.value);
+                    }
+                }
+            });
 
             // Methods
             const selectStudent = (index) => {
