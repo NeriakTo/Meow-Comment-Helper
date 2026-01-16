@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>喵嗚評語助手 V7.1</title>
+    <title>喵嗚評語助手 V7.2</title>
     <script src="config.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -405,8 +405,9 @@ function doGet(e) {
                                 <div class="bg-white p-4 rounded-3xl shadow-sm border-2 border-[#FFCC80] relative overflow-hidden">
                                     <div class="absolute top-0 right-0 bg-[#C5A89E] text-white text-[10px] md:text-xs px-2 py-1 rounded-bl-2xl font-bold">學籍卡評語 (嚴謹)</div>
                                     <div class="text-center py-2 flex items-center justify-center min-h-[3rem]">
-                                        <div v-if="currentStudent.motto" class="text-lg md:text-xl font-bold text-[#5D4037] tracking-widest font-serif">{{ currentStudent.motto }}</div>
-                                        <div v-else class="text-[#C5A89E] text-xs md:text-sm flex items-center gap-2"><span>⚖️</span> 等待生成...</div>
+                                        <input type="text" v-model="currentStudent.motto" 
+                                               placeholder="等待生成或自行輸入..." 
+                                               class="w-full text-lg md:text-xl font-bold text-[#5D4037] tracking-widest font-serif text-center bg-transparent outline-none placeholder-[#C5A89E]">
                                     </div>
                                 </div>
                                 <div class="flex-1 flex flex-col bg-white rounded-3xl shadow-lg border-2 border-[#FFCC80] overflow-hidden relative ring-1 ring-[#FFE0B2] min-h-[250px]">
@@ -983,6 +984,13 @@ function doGet(e) {
                 if (!currentStudent.value.name) { alert('請輸入姓名'); return; }
                 if (!currentStudent.value.raw_comment) { alert('請輸入紀錄'); return; }
                 
+                // V7.2 新增：覆蓋確認機制
+                if (currentStudent.value.polished_comment || currentStudent.value.motto) {
+                    if (!confirm('⚠️ 該生已有評語資料，確定要重新生成並覆蓋嗎？')) {
+                        return;
+                    }
+                }
+                
                 // 2. 設定狀態與逾時控制器
                 isGenerating.value = true;
                 currentStudent.value.polished_comment = "🐾 貓貓思考中...";
@@ -991,34 +999,34 @@ function doGet(e) {
 
                 // 3. 精心設計的 Prompt (切勿精簡此段)
                 const prompt = `
-                    角色設定：你是一位資深的台灣國小導師，擅長班級經營與親師溝通，文字富有溫度且精準。
+                    角色設定：你是一位台灣資深的國小導師，文字溫暖、流暢且具教育專業。你擅長觀察學生細節，並能用正面、鼓勵的語氣撰寫評語。
                     
-                    任務目標：請根據以下「觀察紀錄」，為學生「${currentStudent.value.name}」撰寫兩份風格截然不同的評語。
+                    任務目標：根據「觀察紀錄」，為學生「${currentStudent.value.name}」撰寫兩份評語。
                     
                     輸入資料：
                     - 學生姓名：${currentStudent.value.name}
                     - 觀察紀錄：${currentStudent.value.raw_comment}
                     
-                    輸出格式：請僅輸出一個合法的 JSON 物件 (不要有 markdown 標記)，格式如下：
+                    輸出格式 (JSON)：
                     {
-                        "comment": "學期成績單評語 (給家長看)",
-                        "motto": "學籍卡八字箴言 (給校方存檔)"
+                        "comment": "學期成績單評語",
+                        "motto": "八字箴言"
                     }
                     
                     撰寫規則：
-                    1. comment (成績單評語)：
-                       - 風格：溫暖、正向、鼓勵、成長型思維 (Growth Mindset)。
-                       - 結構：採用「三明治法」（先肯定優點 -> 溫和提出建議 -> 給予正向期許）。
-                       - 字數：控制在 70 ~ 100 字之間。
-                       - 語氣：讓家長感到安心，即使有缺點，也要用「期許」的方式表達 (例如將「愛講話」轉化為「善於表達，若能看場合發言會更棒」)。
+                    1. comment (暖心評語)：
+                       - 字數：70 ~ 100 字。
+                       - 結構：必須包含「具體優點」->「溫和建議」->「未來期許」。
+                       - 語氣：**通順流暢**是第一優先。請使用連接詞（如：此外、然而、若能...）將句子串連，避免流水帳。
+                       - 轉化技巧：將缺點轉化為「成長型建議」。例如不說「愛講話」，改說「善於表達，若能學習在適當時機發言，將更具領袖風範」。
                     
                     2. motto (八字箴言)：
-                       - 風格：中立、客觀、嚴謹、簡潔。
-                       - 格式：嚴格限制為「兩個四字詞語」，中間用全形逗號「，」隔開。
-                       - 邏輯判斷 (必遵守)：
-                         (A) 若觀察紀錄【全為優點】：給予兩個正向詞語 (如：品學兼優，熱心助人)。
-                         (B) 若觀察紀錄【好壞參半】：給予一個優點 + 一個提醒 (如：活潑好動，需守秩序)。
-                         (C) 若觀察紀錄【多為缺點】：給予兩個改進建議或提醒 (如：加強專注，改進常規)。
+                       - 格式：嚴格限制為「四字詞語，四字詞語」（中間用全形逗號隔開）。
+                       - 選詞限制：請僅使用台灣教育現場常用的標準評語。
+                       - 邏輯判斷：
+                         (A) 優點為主：如「品學兼優，熱心助人」、「聰穎靈活，表現優異」。
+                         (B) 需改進：如「活潑好動，需守秩序」、「天資聰穎，粗心大意」。
+                         (C) 個性描述：如「個性溫和，合群樂群」、「循規蹈矩，負責盡職」。
                 `;
                 
                 // 4. API 呼叫 (包含錯誤處理與重試邏輯)
