@@ -50,17 +50,20 @@
                 <div v-show="wizardStep === 2" class="p-6 md:p-8 text-center">
                     <div class="text-5xl md:text-6xl mb-4">🥫</div>
                     <h2 class="text-xl md:text-2xl font-bold text-[#5D4037] mb-4">領取貓罐頭 (API Key)</h2>
-                    <p class="text-[#8D6E63] leading-relaxed mb-4 text-sm md:text-base">
-                        這是 Google 提供的免費 AI 服務。<br>
-                        請點擊下方按鈕，登入 Google 帳號後，<br>
-                        點選 <strong class="text-[#5D4037]">'Create API key'</strong> 即可。
-                    </p>
+                    <div class="text-[#8D6E63] leading-relaxed mb-4 text-sm md:text-base text-left bg-[#FFF3E0] rounded-2xl p-4">
+                        <ol class="list-decimal list-inside space-y-2">
+                            <li>點擊下方連結前往 <strong class="text-[#5D4037]">Google AI Studio</strong></li>
+                            <li>點擊頁面上的 <strong class="text-[#5D4037]">"Create API key"</strong> 按鈕</li>
+                            <li class="text-[#E65100] font-medium">⚠️ 重要：選擇 <strong>"Create API key in new project"</strong></li>
+                            <li>複製生成的密碼 (以 <strong class="font-mono">AIza</strong> 開頭)</li>
+                        </ol>
+                    </div>
                     <a href="https://aistudio.google.com/app/apikey" target="_blank" 
                        class="inline-flex items-center gap-2 px-6 py-3 bg-[#42A5F5] hover:bg-[#1E88E5] text-white font-bold rounded-2xl shadow-md hover:shadow-lg transition-all mb-4">
                         🔗 前往 Google AI Studio 領取鑰匙
                     </a>
-                    <p class="text-xs text-[#C5A89E] mb-6">
-                        💡 取得一串以 <strong>AIza</strong> 開頭的密碼後，請複製起來
+                    <p class="text-xs text-[#C5A89E] mb-4">
+                        🖱️ 記得點選 <strong>"Create API key in new project"</strong> 喔！
                     </p>
                     <div class="flex gap-3">
                         <button @click="prevWizardStep" 
