@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>喵嗚評語助手 V7.4.1</title>
+    <title>喵嗚評語助手 V7.4.2</title>
     <script src="config.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -623,7 +623,8 @@ function doGet(e) {
             };
             const isEditingTags = ref(false); // V7.3: 標籤編輯模式
             const newTagInput = ref(''); // V7.3: 新增標籤輸入框
-            const MODEL_CANDIDATES = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-flash-latest'];
+            // V7.4.2 Fix: 恢復高品質模型優先 (2.0 Flash Exp)，若失敗則退守 1.5 Pro/Flash
+            const MODEL_CANDIDATES = ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash'];
             
             // 行為量表配置
             const BEHAVIOR_CONFIG = {
@@ -1104,7 +1105,7 @@ function doGet(e) {
                     currentStudent.value.polished_comment = "🐾 貓貓思考中...";
                 }
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒逾時設定
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // V7.4.2: 延長至 30 秒
 
                 // V7.4: 根據鎖定狀態動態調整任務說明
                 let taskInstruction = '';
@@ -1185,19 +1186,35 @@ function doGet(e) {
                             break; // 成功則跳出迴圈
                         }
                     } catch (e) {
-                        // 若是逾時錯誤，可以在此處記錄，或讓迴圈繼續嘗試下一個模型
-                        if (e.name === 'AbortError') console.warn(`Model ${model} timed out.`);
+                        // V7.4.2: 強化錯誤處理
+                        if (e.name === 'AbortError') {
+                            console.warn(`Model ${model} timed out.`);
+                        } else if (e.message && (e.message.includes('429') || e.message.includes('Resource exhausted'))) {
+                            // 檢測到 API 速率限制，立即中止重試並提示使用者
+                            clearTimeout(timeoutId);
+                            controller.abort(); // 立即釋放資源
+                            if (!isCommentLocked) {
+                                currentStudent.value.polished_comment = originalComment || '';
+                            }
+                            isGenerating.value = false;
+                            alert('⚠️ 休息一下吧！\n\n您觸發了 Google 免費版的「每分鐘使用次數限制」。\n請喝口水，等待 1 分鐘後再試。');
+                            return; // 直接結束函式，不繼續重試
+                        } else {
+                            console.error(`Model ${model} error:`, e);
+                        }
                     }
                 }
                 
                 // 5. 收尾與狀態重置
                 clearTimeout(timeoutId); // 清除計時器
+                controller.abort(); // V7.4.2: 強制釋放連線資源，防止佔線
+                
                 if (!success) {
                     // V7.4: 失敗時還原原始內容
                     if (!isCommentLocked) {
                         currentStudent.value.polished_comment = originalComment || "❌ 生成失敗或連線逾時，請再試一次。";
                     }
-                    alert('貓貓想太久了(超過15秒)或是網路不穩，請再按一次「幫我寫」！');
+                    alert('貓貓想太久了(超過30秒)或是網路不穩，請再按一次「幫我寫」！');
                 }
                 isGenerating.value = false;
             };
