@@ -1,0 +1,1677 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>喵嗚評語助手 V7.5</title>
+    <script src="config.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Varela+Round&family=Noto+Sans+TC:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Varela Round', 'Noto Sans TC', sans-serif;
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .fade-enter-active,
+        .fade-leave-active {
+            transition: opacity 0.3s;
+        }
+
+        .fade-enter-from,
+        .fade-leave-to {
+            opacity: 0;
+        }
+    </style>
+</head>
+
+<body class="bg-[#FFF8F0] h-[100dvh] overflow-hidden text-[#5D4037]">
+
+    <div id="app" class="flex h-full w-full relative">
+
+        <!-- 新手引導精靈 (Onboarding Wizard) -->
+        <transition name="fade">
+            <div v-if="showWelcomeWizard"
+                class="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                <div
+                    class="bg-[#FFF8F0] rounded-3xl shadow-2xl max-w-md w-full border-4 border-[#FFE0B2] overflow-hidden flex flex-col">
+                    <!-- 步驟指示器 -->
+                    <div class="flex justify-center gap-2 pt-6 pb-2">
+                        <div v-for="step in 3" :key="step" class="w-3 h-3 rounded-full transition-all duration-300"
+                            :class="wizardStep >= step ? 'bg-[#FFB74D] scale-110' : 'bg-[#FFE0B2]'"></div>
+                    </div>
+
+                    <!-- 步驟 1：歡迎 -->
+                    <div v-show="wizardStep === 1" class="p-6 md:p-8 text-center">
+                        <div class="text-6xl md:text-7xl mb-4">🐱</div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-[#5D4037] mb-4">嗨！老師辛苦了～</h2>
+                        <p class="text-[#8D6E63] leading-relaxed mb-6">
+                            我是你的評語小幫手。期末到了，讓我來幫你分擔繁重的評語工作吧！<br><br>
+                            在開始之前，我需要一點點「能量」才能運作喔。
+                        </p>
+                        <button @click="nextWizardStep"
+                            class="w-full py-3 bg-[#FFB74D] hover:bg-[#FFA726] text-white font-bold rounded-2xl shadow-md hover:shadow-lg transition-all transform hover:scale-[1.02]">
+                            開始設定 →
+                        </button>
+                    </div>
+
+                    <!-- 步驟 2：獲取 Key -->
+                    <div v-show="wizardStep === 2" class="p-6 md:p-8 text-center">
+                        <div class="text-5xl md:text-6xl mb-4">🥫</div>
+                        <h2 class="text-xl md:text-2xl font-bold text-[#5D4037] mb-4">領取貓罐頭 (API Key)</h2>
+                        <div
+                            class="text-[#8D6E63] leading-relaxed mb-4 text-sm md:text-base text-left bg-[#FFF3E0] rounded-2xl p-4">
+                            <ol class="list-decimal list-inside space-y-2">
+                                <li>點擊下方連結前往 <strong class="text-[#5D4037]">Google AI Studio</strong></li>
+                                <li>點擊頁面上的 <strong class="text-[#5D4037]">"Create API key"</strong> 按鈕</li>
+                                <li class="text-[#E65100] font-medium">⚠️ 重要：選擇 <strong>"Create API key in new
+                                        project"</strong></li>
+                                <li>複製生成的密碼 (以 <strong class="font-mono">AIza</strong> 開頭)</li>
+                            </ol>
+                        </div>
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank"
+                            class="inline-flex items-center gap-2 px-6 py-3 bg-[#42A5F5] hover:bg-[#1E88E5] text-white font-bold rounded-2xl shadow-md hover:shadow-lg transition-all mb-4">
+                            🔗 前往 Google AI Studio 領取鑰匙
+                        </a>
+                        <p class="text-xs text-[#C5A89E] mb-4">
+                            🖱️ 記得點選 <strong>"Create API key in new project"</strong> 喔！
+                        </p>
+                        <div class="flex gap-3">
+                            <button @click="prevWizardStep"
+                                class="flex-1 py-3 bg-[#FFE0B2] hover:bg-[#FFCC80] text-[#8D6E63] font-bold rounded-2xl transition-all">
+                                ← 上一步
+                            </button>
+                            <button @click="nextWizardStep"
+                                class="flex-1 py-3 bg-[#FFB74D] hover:bg-[#FFA726] text-white font-bold rounded-2xl shadow-md hover:shadow-lg transition-all">
+                                我複製好了 →
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 步驟 3：輸入 Key -->
+                    <div v-show="wizardStep === 3" class="p-6 md:p-8 text-center">
+                        <div class="text-5xl md:text-6xl mb-4">✨</div>
+                        <h2 class="text-xl md:text-2xl font-bold text-[#5D4037] mb-4">餵食罐罐 (輸入 Key)</h2>
+                        <p class="text-[#8D6E63] leading-relaxed mb-4 text-sm">
+                            將剛剛複製的那串密碼貼在下面：
+                        </p>
+                        <input type="text" v-model="wizardApiKey" placeholder="AIza... 開頭的密碼"
+                            class="w-full px-4 py-3 text-center text-[#5D4037] rounded-2xl bg-white border-2 border-[#FFE0B2] focus:border-[#FFB74D] focus:ring-4 focus:ring-[#FFE0B2]/50 shadow-sm text-sm md:text-base mb-3 font-mono">
+
+                        <!-- V7.5: 金鑰等級選擇 -->
+                        <div class="mb-3 flex items-center justify-center gap-2">
+                            <label class="text-sm text-[#8D6E63] font-bold">金鑰等級：</label>
+                            <select v-model="keyTier"
+                                class="px-3 py-2 text-sm font-bold rounded-xl border-2 transition-all outline-none shadow-sm"
+                                :class="keyTier === 'paid' ? 'bg-gradient-to-r from-purple-50 to-amber-50 border-purple-300 text-purple-700' : 'bg-white border-[#FFE0B2] text-[#5D4037]'">
+                                <option value="free">🌱 免費版 (Free)</option>
+                                <option value="paid">💎 付費版 (Paid - 更強模型)</option>
+                            </select>
+                        </div>
+                        <p class="text-xs text-[#C5A89E] mb-4 px-4">
+                            {{ keyTier === 'paid' ? '💎 付費版將優先使用 Gemini 2.5/3.0 等最強模型，文采更精緻' : '🌱 免費版使用 Gemini 2.0
+                            Flash，穩定且配額充足' }}
+                        </p>
+
+                        <!-- 公用電腦模式 Checkbox -->
+                        <label
+                            class="flex items-center justify-center gap-2 text-sm text-[#8D6E63] mb-4 cursor-pointer select-none">
+                            <input type="checkbox" v-model="isPublicMode" class="w-4 h-4 accent-[#FFB74D] rounded">
+                            <span>💻 此為公用電腦 (不儲存金鑰)</span>
+                        </label>
+                        <div class="flex gap-3 mb-4">
+                            <button @click="prevWizardStep"
+                                class="flex-1 py-3 bg-[#FFE0B2] hover:bg-[#FFCC80] text-[#8D6E63] font-bold rounded-2xl transition-all">
+                                ← 上一步
+                            </button>
+                            <button @click="completeWizard" :disabled="!wizardApiKey.trim()"
+                                class="flex-1 py-3 bg-[#FFB74D] hover:bg-[#FFA726] text-white font-bold rounded-2xl shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+                                ✨ 啟動助手
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 跳過按鈕 -->
+                    <div class="pb-4 text-center">
+                        <button @click="skipWizard"
+                            class="text-xs text-[#C5A89E] hover:text-[#8D6E63] hover:underline transition">
+                            跳過教學 (進入試用)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <transition name="fade">
+            <div v-if="isSidebarOpen" @click="isSidebarOpen = false" class="fixed inset-0 bg-black/50 z-20 md:hidden">
+            </div>
+        </transition>
+
+        <transition name="fade">
+            <div v-if="showCloudModal"
+                class="absolute inset-0 z-50 bg-[#5D4037]/50 backdrop-blur-sm flex items-center justify-center p-4">
+                <div
+                    class="bg-white rounded-3xl shadow-2xl max-w-lg w-full border-4 border-blue-200 overflow-hidden flex flex-col max-h-[90vh] overflow-y-auto">
+                    <div class="bg-blue-100 p-4 md:p-6 flex justify-between items-center">
+                        <h2 class="text-xl md:text-2xl font-bold text-blue-800 flex items-center gap-2"><span>☁️</span>
+                            貓貓雲端同步</h2>
+                        <button @click="showCloudModal = false"
+                            class="text-[#8D6E63] hover:text-[#5D4037] text-2xl">✕</button>
+                    </div>
+                    <div class="p-6 flex flex-col gap-6">
+                        <!-- GAS 教學摺疊區塊 -->
+                        <details class="group">
+                            <summary
+                                class="cursor-pointer font-bold text-[#FFB74D] hover:text-[#F57C00] list-none flex items-center gap-2 p-2">
+                                <span class="transition-transform group-open:rotate-90">▶</span>
+                                還沒有雲端貓窩？教我怎麼蓋一個！🛠️
+                            </summary>
+                            <div class="bg-[#FFF3E0] rounded-2xl p-4 mt-2 text-sm text-[#5D4037] space-y-4">
+                                <!-- Step 1 -->
+                                <div>
+                                    <p class="font-bold mb-2">📋 Step 1：複製程式碼</p>
+                                    <p class="mb-2">請先複製以下這段程式碼：</p>
+                                    <div class="relative">
+                                        <pre
+                                            class="bg-white border-2 border-[#FFE0B2] rounded-xl p-3 text-xs overflow-x-auto font-mono text-[#5D4037] whitespace-pre-wrap">// ⚠️ 請將下方 "meow1234" 改為自訂密語！
+var SECRET = "meow1234";
+
+function doPost(e) {
+  var payload = JSON.parse(e.postData.contents);
+  // 驗證通關密語
+  if (payload.secret !== SECRET) {
+    return ContentService.createTextOutput(JSON.stringify({"result":"error","message":"密語錯誤"})).setMimeType(ContentService.MimeType.JSON);
+  }
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  sheet.getRange("A1").setValue(JSON.stringify(payload.data));
+  return ContentService.createTextOutput(JSON.stringify({"result":"success"})).setMimeType(ContentService.MimeType.JSON);
+}
+function doGet(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = sheet.getRange("A1").getValue();
+  return ContentService.createTextOutput(data).setMimeType(ContentService.MimeType.JSON);
+}</pre>
+                                        <button @click="copyGasCode"
+                                            class="absolute top-2 right-2 px-3 py-1 bg-[#FFB74D] hover:bg-[#FFA726] text-white text-xs font-bold rounded-lg transition">📋
+                                            複製代碼</button>
+                                    </div>
+                                </div>
+                                <!-- Step 2 -->
+                                <div>
+                                    <p class="font-bold mb-2">🆕 Step 2：建立專案</p>
+                                    <p>點擊 <a href="https://script.google.com/home/start" target="_blank"
+                                            class="text-blue-500 hover:text-blue-700 underline font-bold">這裡前往 Google
+                                            Apps Script</a>，點選<strong>『新專案』</strong>，並將剛剛複製的代碼 <strong>覆蓋</strong>
+                                        掉原本的內容。</p>
+                                </div>
+                                <!-- Step 3 -->
+                                <div>
+                                    <p class="font-bold mb-2">🚀 Step 3：部署為網頁應用程式</p>
+                                    <p class="mb-1">點擊右上角 <strong>『部署』(Deploy)</strong> → <strong>『新增部署』</strong>：</p>
+                                    <ol class="list-decimal list-inside space-y-1 pl-2">
+                                        <li>類型選擇：<strong>網頁應用程式 (Web App)</strong></li>
+                                        <li>誰可以存取：務必選 <strong class="text-red-500">『所有人 (Anyone)』</strong> (很重要！)</li>
+                                        <li>點擊 <strong>『部署』</strong></li>
+                                    </ol>
+                                </div>
+                                <!-- Step 4 -->
+                                <div>
+                                    <p class="font-bold mb-2">🔗 Step 4：取得網址</p>
+                                    <p>複製部署完成後的 <strong>『網頁應用程式網址』</strong>（以 <code
+                                            class="bg-white px-1 rounded">exec</code> 結尾），並貼到下方的輸入框中。</p>
+                                </div>
+                            </div>
+                        </details>
+
+                        <div class="space-y-2">
+                            <label class="text-sm font-bold text-[#8D6E63] uppercase">您的 Google Script 網址 (GAS
+                                URL)</label>
+                            <input type="text" v-model="gasUrl" placeholder="請貼上 https://script.google.com/.../exec"
+                                class="w-full p-3 border-2 rounded-2xl text-sm bg-white focus:ring-4 focus:ring-[#FFE0B2]/50 outline-none transition-all border-[#FFE0B2] focus:border-[#FFB74D]"
+                                :class="gasUrl ? '' : 'border-red-300'">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-sm font-bold text-[#8D6E63] uppercase flex items-center gap-2">🔐 通關密語
+                                (Secret Token)</label>
+                            <input type="password" v-model="gasSecret" placeholder="預設: meow1234 (建議自訂)"
+                                class="w-full p-3 border-2 rounded-2xl text-sm bg-white focus:ring-4 focus:ring-[#FFE0B2]/50 outline-none transition-all border-[#FFE0B2] focus:border-[#FFB74D]">
+                            <p class="text-xs text-[#C5A89E]">⚠️ 此密語須與 GAS 後端程式碼中的密語一致，才能成功同步。</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button @click="uploadToCloud" :disabled="!gasUrl || isSyncing"
+                                class="flex flex-col items-center justify-center p-4 rounded-3xl border-2 border-[#FFE0B2] hover:bg-[#FFF3E0] transition gap-2 disabled:opacity-50"><span
+                                    class="text-3xl">⬆️</span><span
+                                    class="font-bold text-[#5D4037]">上傳備份</span></button>
+                            <button @click="downloadFromCloud" :disabled="!gasUrl || isSyncing"
+                                class="flex flex-col items-center justify-center p-4 rounded-3xl border-2 border-[#FFE0B2] hover:bg-[#FFF3E0] transition gap-2 disabled:opacity-50"><span
+                                    class="text-3xl">⬇️</span><span
+                                    class="font-bold text-[#5D4037]">下載還原</span></button>
+                        </div>
+                        <div v-if="syncStatus" class="text-center text-sm font-bold p-3 rounded-3xl transition-all"
+                            :class="syncStatus.includes('成功') ? 'bg-green-100 text-green-700' : (syncStatus.includes('失敗') ? 'bg-red-100 text-red-700' : 'bg-[#FFF3E0] text-[#8D6E63]')">
+                            {{ syncStatus }}</div>
+
+                        <!-- V7.1 資安：一鍵清除敏感資料 -->
+                        <div class="border-t border-[#FFE0B2] pt-4 mt-2">
+                            <button @click="clearAllData"
+                                class="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-2xl shadow-md transition-all flex items-center justify-center gap-2">
+                                <span>🗑️</span> 清除所有敏感資料 (Panic Button)
+                            </button>
+                            <p class="text-xs text-[#C5A89E] text-center mt-2">⚠️ 此操作將清除 API Key、GAS 網址、通關密語，並重新整理頁面。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <transition name="fade">
+            <div v-if="showClassManager"
+                class="absolute inset-0 z-50 bg-[#5D4037]/40 backdrop-blur-sm flex items-center justify-center p-2 md:p-4">
+                <div
+                    class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl border-4 border-[#FFE0B2] overflow-hidden flex flex-col max-h-[90vh]">
+                    <div class="bg-[#FFE0B2] p-4 md:p-6 flex justify-between items-center">
+                        <h2 class="text-xl md:text-2xl font-bold text-[#5D4037] flex items-center gap-2"><span>🏡</span>
+                            貓窩管理</h2>
+                        <button @click="showClassManager = false"
+                            class="text-[#8D6E63] hover:text-[#5D4037] text-2xl">✕</button>
+                    </div>
+                    <div class="p-4 md:p-6 overflow-y-auto flex-1">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                            <div v-for="(cls, id) in db.classes" :key="id" @click="switchClass(id)"
+                                class="p-4 rounded-3xl border-2 cursor-pointer transition-all relative group"
+                                :class="db.activeClassId === id ? 'border-[#FFB74D] bg-[#FFF8F0] ring-2 ring-[#FFE0B2]' : 'border-[#FFE0B2] hover:border-[#FFCC80]'">
+                                <div class="font-bold text-lg text-[#5D4037]">
+                                    {{ cls.grade }} 年 {{ cls.classNum }} 班
+                                    <span class="text-sm font-normal text-[#8D6E63] block md:inline">({{ cls.name ||
+                                        '未命名' }})</span>
+                                </div>
+                                <div class="text-xs text-[#8D6E63] mt-1">{{ cls.students.length }} 隻小貓</div>
+                                <div v-if="db.activeClassId === id"
+                                    class="absolute top-2 right-2 text-[#FFB74D] text-xs font-bold bg-white px-2 py-0.5 rounded-full border border-[#FFCC80]">
+                                    當前</div>
+                                <div class="absolute bottom-2 right-2 flex gap-1">
+                                    <button @click.stop="editClass(id)"
+                                        class="text-[#C5A89E] hover:text-[#5D4037] md:opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                        title="編輯班級">✏️</button>
+                                    <button v-if="Object.keys(db.classes).length > 1" @click.stop="deleteClass(id)"
+                                        class="text-[#C5A89E] hover:text-red-500 md:opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                        title="刪除班級">🗑️</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="border-t border-[#FFE0B2] my-4"></div>
+
+                        <div class="bg-[#FFF8F0] p-4 rounded-3xl border-2 border-[#FFE0B2]">
+                            <h3 class="font-bold text-[#5D4037] mb-3">{{ editingClassId ? '✏️ 編輯班級' : '🆕 建立新班級' }}</h3>
+                            <div class="grid grid-cols-2 gap-3 mb-3">
+                                <div><label class="text-xs text-[#8D6E63] block mb-1">年級 (數字)</label><input
+                                        v-model="newGrade" type="number" min="1" max="6" placeholder="如: 4"
+                                        class="w-full px-3 py-2 border-2 rounded-2xl text-sm text-center font-bold bg-white border-[#FFE0B2] focus:border-[#FFB74D] focus:ring-4 focus:ring-[#FFE0B2]/50">
+                                </div>
+                                <div><label class="text-xs text-[#8D6E63] block mb-1">班序 (數字)</label><input
+                                        v-model="newClassNum" type="number" min="1" max="30" placeholder="如: 7"
+                                        class="w-full px-3 py-2 border-2 rounded-2xl text-sm text-center font-bold bg-white border-[#FFE0B2] focus:border-[#FFB74D] focus:ring-4 focus:ring-[#FFE0B2]/50">
+                                </div>
+                            </div>
+                            <div class="flex gap-2 items-center"><span
+                                    class="text-xs text-[#8D6E63] whitespace-nowrap">別名:</span><input
+                                    v-model="newClassName" type="text" placeholder="選填"
+                                    class="flex-1 px-3 py-2 border-2 rounded-2xl text-sm bg-white border-[#FFE0B2] focus:border-[#FFB74D] focus:ring-4 focus:ring-[#FFE0B2]/50">
+                            </div>
+                            <div class="flex gap-2 items-center mt-3">
+                                <span
+                                    v-if="!editingClassId || (editingClassId && db.classes[editingClassId] && db.classes[editingClassId].students.length === 0)"
+                                    class="text-xs text-[#8D6E63] whitespace-nowrap">人數:</span>
+                                <input
+                                    v-if="!editingClassId || (editingClassId && db.classes[editingClassId] && db.classes[editingClassId].students.length === 0)"
+                                    v-model.number="newClassCount" type="number" min="1" max="50"
+                                    class="w-16 px-2 py-1 border-2 rounded-2xl text-sm text-center bg-white border-[#FFE0B2] focus:border-[#FFB74D] focus:ring-4 focus:ring-[#FFE0B2]/50">
+                                <button @click="editingClassId ? updateClass() : createNewClass()"
+                                    :class="editingClassId ? 'flex-1 bg-[#FFB74D] hover:bg-[#FFA726]' : 'flex-1 bg-[#FFB74D] hover:bg-[#FFA726]'"
+                                    class="text-white text-sm font-bold py-2 rounded-2xl transition">
+                                    {{ editingClassId ? '💾 儲存修改' : '建立' }}
+                                </button>
+                                <button v-if="editingClassId" @click="cancelEdit"
+                                    class="px-3 py-2 bg-[#C5A89E] hover:bg-[#8D6E63] text-white text-sm font-bold rounded-2xl transition">取消</button>
+                            </div>
+                        </div>
+
+                        <div
+                            class="mt-4 bg-[#FFF3E0] p-4 rounded-3xl border-2 border-[#FFE0B2] relative overflow-hidden group">
+                            <h3 class="font-bold text-[#5D4037] mb-2">📂 匯入舊 Excel</h3>
+                            <label
+                                class="block w-full bg-white border-2 border-[#FFE0B2] text-[#5D4037] hover:bg-[#FFB74D] hover:text-white text-center py-2 rounded-2xl cursor-pointer transition text-sm font-bold shadow-sm">選擇檔案匯入<input
+                                    type="file" accept=".xlsx, .xls" class="hidden" @change="handleImportExcel"></label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <div class="fixed md:relative z-30 h-full w-[85vw] md:w-80 bg-white/90 backdrop-blur md:backdrop-blur-0 border-4 border-[#FFE0B2] ml-0 md:m-4 rounded-r-3xl md:rounded-3xl shadow-xl flex flex-col transition-transform duration-300 ease-in-out transform"
+            :class="isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'">
+
+            <div
+                class="p-4 bg-[#FFE0B2] text-[#5D4037] shadow-md z-20 relative overflow-hidden shrink-0 rounded-tr-3xl md:rounded-t-3xl">
+                <div class="relative z-10">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2 cursor-pointer hover:bg-[#FFCC80]/60 rounded-2xl p-1 transition"
+                            @click="showClassManager = true">
+                            <span class="text-xl">🐾</span>
+                            <h1 class="text-lg font-bold tracking-wide">
+                                <span v-if="currentClassData.grade">{{ currentClassData.grade }}年{{
+                                    currentClassData.classNum }}班</span>
+                                <span v-else>{{ currentClassData.name || '選擇班級' }}</span>
+                            </h1>
+                            <span class="text-xs bg-white/70 px-2 py-0.5 rounded-2xl text-[#8D6E63]">▼</span>
+                        </div>
+                        <button @click="isSidebarOpen = false"
+                            class="md:hidden text-[#8D6E63] hover:text-[#5D4037] text-xl font-bold p-1">✕</button>
+                    </div>
+                    <div class="relative">
+                        <input type="text" v-model="searchQuery" placeholder="搜尋姓名/座號..."
+                            class="w-full pl-8 pr-3 py-2 text-[#5D4037] rounded-2xl bg-white border-2 border-[#FFE0B2] focus:border-[#FFB74D] focus:ring-4 focus:ring-[#FFE0B2]/50 shadow-sm text-sm placeholder-[#C5A89E]">
+                        <span class="absolute left-2.5 top-2 text-[#C5A89E] text-xs">🔍</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-3 pb-0 space-y-2 no-scrollbar bg-[#FFF8F0]">
+                <div v-for="(student, index) in filteredStudents" :key="student.id"
+                    @click="selectStudent(student.originalIndex)"
+                    class="group relative p-3 rounded-3xl cursor-pointer border transition-all duration-200 pr-8"
+                    :class="currentIdx === student.originalIndex ? 'bg-white border-[#FFB74D] shadow-md ring-2 ring-[#FFE0B2]' : 'bg-white/80 border-transparent hover:bg-white hover:border-[#FFCC80]'">
+                    <div class="flex flex-col">
+                        <span class="text-xs font-mono text-[#8D6E63] mb-0.5 flex items-center gap-1"><span
+                                class="text-[10px]">🐾</span> 座號 {{ student.id }}</span>
+                        <div class="flex items-center gap-2">
+                            <span v-if="student.name" class="font-bold text-[#5D4037] text-lg">{{ student.name }}</span>
+                            <span v-else class="text-[#8D6E63] text-sm italic">(點擊輸入)</span>
+                            <span v-if="student.polished_comment"
+                                class="text-[10px] text-white font-bold bg-[#FFB74D] px-2 py-0.5 rounded-full border border-[#FFCC80]">✔</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="h-3"></div>
+            </div>
+            <div
+                class="p-3 md:p-4 border-t-2 border-[#FFCC80] text-sm text-[#8D6E63] bg-[#FFF3E0] flex justify-between items-center px-4 shrink-0 safe-area-bottom rounded-br-[20px] md:rounded-b-[20px] shadow-inner">
+                <span class="font-medium">🐾 {{ students.length }} 隻小貓</span>
+                <button @click="resetCurrentClass"
+                    class="text-red-400 hover:text-red-600 hover:underline font-medium">清空本班</button>
+            </div>
+        </div>
+
+        <div
+            class="flex-1 flex flex-col h-full bg-white/90 relative w-full overflow-hidden md:rounded-3xl md:m-4 shadow-xl md:border-4 border-[#FFE0B2]">
+            <div
+                class="bg-[#FFF8F0] border-b border-[#FFCC80] flex flex-col md:flex-row items-start md:items-center justify-between p-2 md:p-3 md:px-8 shadow-sm z-10 gap-2 md:gap-3 shrink-0">
+
+                <div class="flex items-center w-full md:w-auto justify-between">
+                    <div class="flex items-center gap-2">
+                        <button @click="isSidebarOpen = true"
+                            class="md:hidden p-2 -ml-2 text-[#8D6E63] hover:bg-[#FFF3E0] rounded-2xl">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 6h16M4 12h16M4 18h16"></path>
+                            </svg>
+                        </button>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold uppercase whitespace-nowrap"
+                                :class="apiKey ? 'text-emerald-600' : 'text-red-500'">{{ apiKey ? '🔑 OK' : '🔑 未輸入'
+                                }}</span>
+                            <!-- V7.5: 金鑰等級選擇器 -->
+                            <select v-model="keyTier"
+                                class="hidden md:block text-xs font-bold rounded-xl px-2 py-1 border-2 transition-all outline-none shadow-sm"
+                                :class="keyTier === 'paid' ? 'bg-gradient-to-r from-purple-50 to-amber-50 border-purple-300 text-purple-700' : 'bg-white border-[#FFE0B2] text-[#5D4037]'"
+                                title="選擇您的 API Key 等級">
+                                <option value="free">🌱 免費版</option>
+                                <option value="paid">💎 付費版</option>
+                            </select>
+                            <input type="password" v-model="apiKey" :disabled="isConfigLoaded" placeholder="API Key..."
+                                class="bg-white border-2 rounded-2xl px-2 py-1 w-20 md:w-24 text-sm focus:w-64 transition-all focus:outline-none disabled:bg-[#FFF3E0] border-[#FFE0B2] focus:border-[#FFB74D] focus:ring-4 focus:ring-[#FFE0B2]/50">
+                            <label
+                                class="hidden md:flex items-center gap-1 text-xs text-[#8D6E63] cursor-pointer select-none"
+                                title="勾選後金鑰不會儲存，重整頁面後需重新輸入">
+                                <input type="checkbox" v-model="isPublicMode" class="w-3 h-3 accent-[#FFB74D] rounded">
+                                <span>💻 公用</span>
+                            </label>
+                            <button @click="openWizard"
+                                class="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center bg-white text-[#FFB74D] border-2 border-[#FFE0B2] hover:bg-[#FFF3E0] hover:border-[#FFB74D] rounded-full shadow-sm transition font-bold text-sm"
+                                title="Gemini API Key 取得教學說明">❓</button>
+                        </div>
+                    </div>
+
+                    <div v-if="currentStudent" class="md:hidden font-bold text-[#5D4037] truncate max-w-[100px]">{{
+                        currentStudent.name }}</div>
+                </div>
+
+                <div class="flex items-center justify-between w-full md:w-auto gap-3 overflow-x-auto no-scrollbar">
+                    <div class="flex items-center gap-2 md:border-l md:pl-4 border-[#FFE0B2] shrink-0">
+                        <span class="text-sm font-bold text-[#8D6E63] hidden md:inline">領域：</span>
+                        <select v-model="selectedSubject"
+                            class="bg-white border-2 border-[#FFE0B2] text-[#5D4037] text-xs md:text-sm rounded-xl md:rounded-2xl focus:ring-4 focus:ring-[#FFE0B2]/50 focus:border-[#FFB74D] block p-1.5 md:p-2 font-bold cursor-pointer min-w-[120px] md:min-w-[180px]">
+                            <option value="一般導師">導師 (班級經營)</option>
+                            <option value="國語文">國語文</option>
+                            <option value="數學">數學</option>
+                            <option value="英語文">英語文</option>
+                            <option value="自然科學">自然科學</option>
+                            <option value="社會">社會</option>
+                            <option value="藝術">藝術</option>
+                            <option value="健康與體育">健體</option>
+                            <option value="綜合活動">綜合</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-1.5 md:gap-2 shrink-0">
+                        <button @click="showCloudModal = true"
+                            class="flex items-center gap-1 bg-[#42A5F5] hover:bg-[#1E88E5] text-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl md:rounded-2xl shadow-md hover:shadow-lg transition text-xs md:text-sm font-bold">☁️
+                            <span class="hidden sm:inline">同步</span></button>
+                        <button @click="exportToExcel"
+                            class="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl md:rounded-2xl shadow-md hover:shadow-lg transition text-xs md:text-sm font-bold">📥
+                            <span class="hidden sm:inline">匯出</span></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-[#FFF8F0]" v-if="currentStudent">
+                <div class="max-w-6xl mx-auto pb-20 md:pb-0">
+                    <!-- 學生姓名區塊 -->
+                    <div
+                        class="bg-white p-4 rounded-3xl shadow-sm border-2 border-[#FFCC80] flex items-center gap-4 mb-4">
+                        <div
+                            class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[#FFF3E0] flex items-center justify-center text-xl md:text-2xl select-none">
+                            🐱</div>
+                        <div class="flex-1">
+                            <label class="text-xs font-bold text-[#8D6E63] uppercase">學生姓名</label>
+                            <input type="text" v-model="currentStudent.name" placeholder="輸入名字..."
+                                class="w-full text-xl md:text-2xl font-bold text-[#5D4037] border-b border-transparent focus:border-[#FFB74D] focus:outline-none bg-transparent">
+                        </div>
+                    </div>
+
+                    <!-- Tabs 導航 -->
+                    <div class="bg-white rounded-3xl shadow-sm border-2 border-[#FFCC80] mb-4 overflow-hidden">
+                        <div class="flex gap-1.5 md:gap-2 p-2 overflow-x-auto no-scrollbar bg-[#FFF8F0]">
+                            <button @click="activeTab = 'comment'"
+                                class="flex-1 px-3 md:px-4 py-2 text-xs md:text-base font-bold transition-all rounded-full whitespace-nowrap"
+                                :class="activeTab === 'comment' ? 'bg-[#FFB74D] text-white shadow-md transform -translate-y-1' : 'bg-[#FFF3E0] text-[#8D6E63] hover:bg-[#FFE0B2]'">
+                                📝 <span class="hidden xs:inline">評語</span><span class="inline xs:hidden">評語</span>
+                            </button>
+                            <button @click="activeTab = 'behavior'"
+                                class="flex-1 px-3 md:px-4 py-2 text-xs md:text-base font-bold transition-all rounded-full whitespace-nowrap"
+                                :class="activeTab === 'behavior' ? 'bg-[#FFB74D] text-white shadow-md transform -translate-y-1' : 'bg-[#FFF3E0] text-[#8D6E63] hover:bg-[#FFE0B2]'">
+                                📊 <span class="hidden xs:inline">行為</span><span class="inline xs:hidden">行為</span>
+                            </button>
+                            <button @click="activeTab = 'records'"
+                                class="flex-1 px-3 md:px-4 py-2 text-xs md:text-base font-bold transition-all rounded-full whitespace-nowrap"
+                                :class="activeTab === 'records' ? 'bg-[#FFB74D] text-white shadow-md transform -translate-y-1' : 'bg-[#FFF3E0] text-[#8D6E63] hover:bg-[#FFE0B2]'">
+                                🏆 <span class="hidden xs:inline">紀錄</span><span class="inline xs:hidden">紀錄</span>
+                            </button>
+                        </div>
+
+                        <!-- Tab 1: 評語生成 -->
+                        <div v-show="activeTab === 'comment'" class="p-4 md:p-6">
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 lg:min-h-[480px]">
+                                <!-- 左欄：快速標籤 + 觀察紀錄 -->
+                                <div class="flex flex-col gap-4">
+                                    <div class="p-4 rounded-3xl border-2 transition-all shrink-0"
+                                        :class="isEditingTags ? 'bg-gray-100 border-dashed border-gray-400' : 'bg-[#FFF8F0] border-[#FFE0B2]'">
+                                        <div
+                                            class="text-xs font-bold text-[#8D6E63] mb-2 uppercase tracking-wider flex items-center justify-between">
+                                            <div class="flex items-center gap-1"><span>🐾</span> 快速標籤</div>
+                                            <button @click="isEditingTags = !isEditingTags"
+                                                class="px-2 py-0.5 text-xs rounded-full transition-all"
+                                                :class="isEditingTags ? 'bg-[#FFB74D] text-white' : 'bg-white text-[#8D6E63] hover:bg-[#FFE0B2]'">
+                                                {{ isEditingTags ? '✓ 完成' : '⚙️ 編輯' }}
+                                            </button>
+                                        </div>
+
+                                        <!-- 一般模式：點擊加入評語 -->
+                                        <div v-if="!isEditingTags"
+                                            class="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                                            <button v-for="tag in currentTags" :key="tag" @click="addTag(tag)"
+                                                class="px-2 py-1 md:px-3 text-xs md:text-sm bg-white hover:bg-[#FFE0B2] hover:text-[#5D4037] text-[#8D6E63] rounded-full border-2 border-[#FFE0B2] transition-colors">{{
+                                                tag }}</button>
+                                        </div>
+
+                                        <!-- 編輯模式：可刪除與新增 -->
+                                        <div v-else class="space-y-3">
+                                            <div class="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                                                <button v-for="(tag, idx) in currentTags" :key="idx"
+                                                    @click="removeCustomTag(idx)"
+                                                    class="px-2 py-1 md:px-3 text-xs md:text-sm bg-red-50 hover:bg-red-100 text-red-600 rounded-full border-2 border-red-300 transition-colors group flex items-center gap-1">
+                                                    <span>{{ tag }}</span>
+                                                    <span class="text-red-400 group-hover:text-red-600">✕</span>
+                                                </button>
+                                            </div>
+                                            <div class="flex gap-2">
+                                                <input type="text" v-model="newTagInput" @keyup.enter="addCustomTag"
+                                                    placeholder="輸入新標籤..."
+                                                    class="flex-1 px-3 py-1.5 text-sm border-2 border-[#FFE0B2] rounded-full focus:border-[#FFB74D] focus:ring-2 focus:ring-[#FFE0B2]/50 outline-none">
+                                                <button @click="addCustomTag"
+                                                    class="px-3 py-1.5 bg-[#FFB74D] hover:bg-[#FFA726] text-white text-sm font-bold rounded-full transition">+
+                                                    新增</button>
+                                            </div>
+                                            <button @click="resetTags"
+                                                class="w-full py-1.5 text-xs text-[#8D6E63] hover:text-[#5D4037] hover:bg-white rounded-full border border-dashed border-[#C5A89E] transition">
+                                                ↺ 還原預設標籤 ({{ selectedSubject }})
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <!-- 觀察紀錄：flex-1 填滿剩餘空間 -->
+                                    <div
+                                        class="flex-1 flex flex-col bg-white rounded-3xl shadow-sm border-2 border-[#FFE0B2] overflow-hidden min-h-[200px] lg:min-h-0">
+                                        <div
+                                            class="p-3 bg-[#FFF3E0] border-b border-[#FFCC80] flex justify-between items-center shrink-0">
+                                            <h3
+                                                class="font-bold text-[#5D4037] flex items-center gap-2 text-sm md:text-base">
+                                                <span>📝</span> 觀察紀錄</h3>
+                                            <button @click="currentStudent.raw_comment = ''"
+                                                class="text-xs text-[#8D6E63] hover:text-red-500">清空</button>
+                                        </div>
+                                        <textarea v-model="currentStudent.raw_comment"
+                                            class="flex-1 w-full p-4 resize-none focus:outline-none text-[#5D4037] leading-relaxed placeholder-[#C5A89E] bg-transparent text-sm md:text-base"
+                                            placeholder="請輸入觀察紀錄..."></textarea>
+                                    </div>
+                                </div>
+
+                                <!-- 右欄：學籍卡評語 + 老師評語 -->
+                                <div class="flex flex-col gap-4">
+                                    <!-- 學籍卡評語區塊 (含鎖定按鈕) - V7.4.1 美化標題 -->
+                                    <div class="bg-white p-4 rounded-3xl shadow-sm border-2 transition-all relative overflow-hidden shrink-0"
+                                        :class="currentStudent.locked_motto ? 'border-red-300 bg-red-50/30' : 'border-[#FFCC80]'">
+                                        <div class="absolute top-0 right-0 flex items-center">
+                                            <button @click="currentStudent.locked_motto = !currentStudent.locked_motto"
+                                                class="px-2 py-1 text-sm transition-all"
+                                                :class="currentStudent.locked_motto ? 'text-red-500' : 'text-gray-400 hover:text-gray-600'"
+                                                :title="currentStudent.locked_motto ? '已鎖定：AI 不會覆寫此欄位' : '未鎖定：AI 可覆寫此欄位'">
+                                                {{ currentStudent.locked_motto ? '🔒' : '🔓' }}
+                                            </button>
+                                            <div
+                                                class="bg-[#C5A89E] text-white text-[10px] md:text-xs px-2 py-1 rounded-bl-2xl font-bold">
+                                                學籍卡評語 (嚴謹)</div>
+                                        </div>
+                                        <div class="text-center flex items-center justify-center min-h-[3rem] pt-4">
+                                            <input type="text" v-model="currentStudent.motto" placeholder="等待生成或自行輸入..."
+                                                :readonly="currentStudent.locked_motto"
+                                                class="w-full text-lg md:text-xl font-bold text-[#5D4037] tracking-widest font-serif text-center outline-none placeholder-[#C5A89E] transition-all"
+                                                :class="currentStudent.locked_motto ? 'bg-gray-100 cursor-not-allowed rounded-xl' : 'bg-transparent'">
+                                        </div>
+                                    </div>
+
+                                    <!-- 老師評語區塊 (含鎖定按鈕 + 懸浮按鈕) - flex-1 填滿剩餘空間 -->
+                                    <div class="flex-1 flex flex-col bg-white rounded-3xl shadow-lg border-2 overflow-hidden ring-1 ring-[#FFE0B2] min-h-[250px] lg:min-h-0 transition-all relative"
+                                        :class="currentStudent.locked_comment ? 'border-red-300' : 'border-[#FFCC80]'">
+                                        <div
+                                            class="p-3 bg-gradient-to-r from-[#FFF8F0] to-white border-b border-[#FFCC80] flex justify-between items-center shrink-0">
+                                            <h3
+                                                class="font-bold text-[#5D4037] flex items-center gap-2 text-sm md:text-base">
+                                                <span>✨</span> 老師評語 (暖心)</h3>
+                                            <div class="flex items-center gap-2">
+                                                <button v-if="currentStudent.polished_comment" @click="copyResult"
+                                                    class="text-xs text-[#8D6E63] font-bold hover:bg-[#FFF3E0] px-2 py-1 rounded-2xl transition">複製</button>
+                                                <!-- V7.6: 歷史紀錄控制 -->
+                                                <div
+                                                    class="flex items-center gap-1 border-l border-r border-[#FFCC80] px-2 mx-1">
+                                                    <button @click="undo" :disabled="currentStudent.history_index <= 0"
+                                                        class="text-sm px-2 py-0.5 rounded-full transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#FFF3E0]"
+                                                        title="復原 (Undo)">↩</button>
+                                                    <button @click="redo"
+                                                        :disabled="currentStudent.history_index >= currentStudent.comment_history.length - 1"
+                                                        class="text-sm px-2 py-0.5 rounded-full transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#FFF3E0]"
+                                                        title="重做 (Redo)">↪</button>
+                                                </div>
+                                                <button
+                                                    @click="currentStudent.locked_comment = !currentStudent.locked_comment"
+                                                    class="text-sm px-2 py-0.5 rounded-full transition-all"
+                                                    :class="currentStudent.locked_comment ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'"
+                                                    :title="currentStudent.locked_comment ? '已鎖定：AI 不會覆寫此欄位' : '未鎖定：AI 可覆寫此欄位'">
+                                                    {{ currentStudent.locked_comment ? '🔒' : '🔓' }}
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <!-- V7.4.1: pb-20 防止按鈕遮擋文字 -->
+                                        <textarea v-model="currentStudent.polished_comment" @blur="handleCommentBlur"
+                                            :readonly="currentStudent.locked_comment"
+                                            class="flex-1 w-full p-4 md:p-6 pb-20 resize-none focus:outline-none text-[#5D4037] leading-relaxed text-sm md:text-base transition-all"
+                                            :class="currentStudent.locked_comment ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'"
+                                            placeholder="貓貓生成的暖心評語將顯示於此..."></textarea>
+                                        <!-- V7.4.1: 懸浮按鈕恢復至右下角 -->
+                                        <div class="absolute bottom-4 right-4 md:bottom-6 md:right-6 z-10">
+                                            <button @click="generateComment" :disabled="isGenerating || !apiKey"
+                                                class="flex items-center justify-center gap-2 px-6 py-3 md:px-8 md:py-4 rounded-full shadow-xl transition-all transform active:scale-95 md:hover:scale-110 disabled:opacity-80 disabled:cursor-not-allowed disabled:transform-none text-white font-bold text-sm md:text-base"
+                                                :class="!apiKey ? 'bg-[#C5A89E]' : 'bg-[#FFB74D] hover:bg-[#FFA726]'">
+                                                <span v-if="!apiKey">🚫 缺 Key</span>
+                                                <span v-else-if="isGenerating">🐾 思考中...</span>
+                                                <span v-else>🐾 幫我寫</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 2: 行為量表 -->
+                        <div v-show="activeTab === 'behavior'"
+                            class="p-3 md:p-6 overflow-y-auto max-h-[calc(100vh-260px)] md:max-h-[calc(100vh-300px)]">
+                            <div
+                                class="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                                <h3 class="text-base md:text-xl font-bold text-[#5D4037]">行為量表評等</h3>
+                                <button @click="setDefaultBehavior"
+                                    class="px-3 md:px-4 py-1.5 md:py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs md:text-sm font-bold rounded-xl md:rounded-2xl shadow-md transition transform active:scale-95 whitespace-nowrap">
+                                    ⚡ 一鍵預設 (大部分符合)
+                                </button>
+                            </div>
+                            <div class="space-y-6" v-if="currentStudent.behavior">
+                                <div v-for="(config, category) in BEHAVIOR_CONFIG" :key="category"
+                                    class="bg-white rounded-2xl md:rounded-3xl shadow-sm border-2 border-[#FFCC80] p-3 md:p-6">
+                                    <h4
+                                        class="text-sm md:text-lg font-bold text-[#5D4037] mb-3 md:mb-4 pb-2 border-b border-[#FFE0B2]">
+                                        【{{ category }}】</h4>
+                                    <div class="space-y-2.5 md:space-y-3 mb-4">
+                                        <div v-for="(item, idx) in config.items" :key="idx"
+                                            class="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-2">
+                                            <label
+                                                class="text-[13px] md:text-[15px] font-medium text-[#5D4037] flex-1 md:min-w-[300px] leading-snug">{{
+                                                item }}</label>
+                                            <select v-model="currentStudent.behavior[category].items[idx]"
+                                                class="px-2.5 md:px-3 py-1.5 md:py-2 border-2 border-[#FFE0B2] rounded-xl md:rounded-2xl text-xs md:text-sm bg-white focus:ring-4 focus:ring-[#FFE0B2]/50 focus:border-[#FFB74D] outline-none w-full md:w-auto">
+                                                <option value="">請選擇</option>
+                                                <option v-for="opt in BEHAVIOR_OPTIONS" :key="opt" :value="opt">{{ opt
+                                                    }}</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-[#FFE0B2]">
+                                        <label
+                                            class="text-xs md:text-sm font-bold text-[#8D6E63] block mb-1.5 md:mb-2">具體建議：</label>
+                                        <textarea v-model="currentStudent.behavior[category].suggestion"
+                                            placeholder="請輸入具體建議..."
+                                            class="w-full px-2.5 md:px-3 py-1.5 md:py-2 border-2 border-[#FFE0B2] rounded-xl md:rounded-2xl text-xs md:text-sm resize-none focus:ring-4 focus:ring-[#FFE0B2]/50 focus:border-[#FFB74D] outline-none"
+                                            rows="2"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-else class="text-center py-8 text-[#8D6E63]">
+                                <p>正在初始化行為量表...</p>
+                            </div>
+                        </div>
+
+                        <!-- Tab 3: 多元紀錄 -->
+                        <div v-show="activeTab === 'records'"
+                            class="p-3 md:p-6 overflow-y-auto max-h-[calc(100vh-260px)] md:max-h-[calc(100vh-300px)]">
+                            <h3 class="text-base md:text-xl font-bold text-[#5D4037] mb-3 md:mb-4">多元表現紀錄</h3>
+                            <div class="space-y-3 md:space-y-4" v-if="currentStudent.records">
+                                <div
+                                    class="bg-white rounded-2xl md:rounded-3xl shadow-sm border-2 border-[#FFCC80] p-3 md:p-6">
+                                    <label
+                                        class="text-xs md:text-base font-bold text-[#5D4037] block mb-1.5 md:mb-2">團體活動紀錄</label>
+                                    <textarea v-model="currentStudent.records.groupActivity" placeholder="請輸入團體活動紀錄..."
+                                        class="w-full px-2.5 md:px-3 py-1.5 md:py-2 border-2 border-[#FFE0B2] rounded-xl md:rounded-2xl text-xs md:text-sm resize-none focus:ring-4 focus:ring-[#FFE0B2]/50 focus:border-[#FFB74D] outline-none"
+                                        rows="2"></textarea>
+                                </div>
+                                <div
+                                    class="bg-white rounded-2xl md:rounded-3xl shadow-sm border-2 border-[#FFCC80] p-3 md:p-6">
+                                    <label
+                                        class="text-xs md:text-base font-bold text-[#5D4037] block mb-1.5 md:mb-2">公共服務紀錄
+                                        - 校內服務</label>
+                                    <textarea v-model="currentStudent.records.publicServiceSchool"
+                                        placeholder="請輸入校內服務紀錄..."
+                                        class="w-full px-2.5 md:px-3 py-1.5 md:py-2 border-2 border-[#FFE0B2] rounded-xl md:rounded-2xl text-xs md:text-sm resize-none focus:ring-4 focus:ring-[#FFE0B2]/50 focus:border-[#FFB74D] outline-none"
+                                        rows="2"></textarea>
+                                </div>
+                                <div
+                                    class="bg-white rounded-2xl md:rounded-3xl shadow-sm border-2 border-[#FFCC80] p-3 md:p-6">
+                                    <label
+                                        class="text-xs md:text-base font-bold text-[#5D4037] block mb-1.5 md:mb-2">公共服務紀錄
+                                        - 社區服務</label>
+                                    <textarea v-model="currentStudent.records.publicServiceCommunity"
+                                        placeholder="請輸入社區服務紀錄..."
+                                        class="w-full px-2.5 md:px-3 py-1.5 md:py-2 border-2 border-[#FFE0B2] rounded-xl md:rounded-2xl text-xs md:text-sm resize-none focus:ring-4 focus:ring-[#FFE0B2]/50 focus:border-[#FFB74D] outline-none"
+                                        rows="2"></textarea>
+                                </div>
+                                <div
+                                    class="bg-white rounded-2xl md:rounded-3xl shadow-sm border-2 border-[#FFCC80] p-3 md:p-6">
+                                    <label
+                                        class="text-xs md:text-base font-bold text-[#5D4037] block mb-1.5 md:mb-2">校內外特殊表現
+                                        - 校內</label>
+                                    <textarea v-model="currentStudent.records.specialPerformanceSchool"
+                                        placeholder="請輸入校內特殊表現紀錄..."
+                                        class="w-full px-2.5 md:px-3 py-1.5 md:py-2 border-2 border-[#FFE0B2] rounded-xl md:rounded-2xl text-xs md:text-sm resize-none focus:ring-4 focus:ring-[#FFE0B2]/50 focus:border-[#FFB74D] outline-none"
+                                        rows="2"></textarea>
+                                </div>
+                                <div
+                                    class="bg-white rounded-2xl md:rounded-3xl shadow-sm border-2 border-[#FFCC80] p-3 md:p-6">
+                                    <label
+                                        class="text-xs md:text-base font-bold text-[#5D4037] block mb-1.5 md:mb-2">校內外特殊表現
+                                        - 校外</label>
+                                    <textarea v-model="currentStudent.records.specialPerformanceExternal"
+                                        placeholder="請輸入校外特殊表現紀錄..."
+                                        class="w-full px-2.5 md:px-3 py-1.5 md:py-2 border-2 border-[#FFE0B2] rounded-xl md:rounded-2xl text-xs md:text-sm resize-none focus:ring-4 focus:ring-[#FFE0B2]/50 focus:border-[#FFB74D] outline-none"
+                                        rows="2"></textarea>
+                                </div>
+                            </div>
+                            <div v-else class="text-center py-8 text-[#8D6E63]">
+                                <p>正在初始化多元紀錄...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-else class="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#FFF8F0]">
+                <div class="text-7xl md:text-9xl mb-6 cursor-pointer hover:scale-110 transition drop-shadow-lg"
+                    @click="isSidebarOpen = true">😺</div>
+                <p class="text-xl md:text-2xl font-bold text-[#5D4037] mb-2">歡迎來到喵嗚評語助手！</p>
+                <p class="text-base md:text-lg text-[#8D6E63]">點擊左上角選單，選擇一隻小貓吧 🐾</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, watch, onMounted, computed } = Vue;
+
+        createApp({
+            setup() {
+                // State
+                const isSidebarOpen = ref(false);
+                const newGrade = ref('');
+                const newClassNum = ref('');
+                const showCloudModal = ref(false);
+                const gasUrl = ref('');
+                const gasSecret = ref(''); // V7.1 資安：通關密語
+                const isSyncing = ref(false);
+                const syncStatus = ref('');
+                const apiKey = ref('');
+                const keyTier = ref('free'); // V7.5: 金鑰等級 ('free' / 'paid')
+                const isConfigLoaded = ref(false);
+                const isPublicMode = ref(false); // V7.1 資安：公用電腦模式
+                const isGenerating = ref(false);
+                const selectedSubject = ref('一般導師');
+                const searchQuery = ref('');
+                const showClassManager = ref(false);
+                const newClassName = ref('');
+                const newClassCount = ref(30);
+                const editingClassId = ref(null); // 編輯模式：當前編輯的班級 ID
+                const db = reactive({ activeClassId: 'default', classes: {} });
+                const currentIdx = ref(-1);
+                const activeTab = ref('comment');
+                const showWelcomeWizard = ref(false); // 新手引導精靈
+                const wizardStep = ref(1); // 引導步驟 1-3
+                const wizardApiKey = ref(''); // 引導中輸入的 API Key
+                // V7.3: 預設標籤常數 (作為備份與初始化用)
+                const DEFAULT_TAGS = {
+                    '一般導師': ['熱心助人', '負責盡職', '活潑外向', '人緣極佳', '沉默寡言', '專注力佳', '容易分心', '作業優良', '需加強整潔', '禮貌周到', '愛惜公物', '樂於分享'],
+                    '國語文': ['字跡工整', '喜愛閱讀', '朗讀流暢', '語意表達佳', '成語運用豐富', '寫作具創意', '字音字形需加強'],
+                    '數學': ['邏輯清晰', '計算細心', '理解力強', '解題速度快', '粗心大意', '空間概念佳', '運算需加強'],
+                    '英語文': ['發音標準', '樂於開口', '單字量豐富', '聽力敏銳', '勇於表達', '需加強拼字'],
+                    '藝術': ['具備美感', '富有創意', '色彩豐富', '線條大膽', '歌聲優美', '節奏感強', '鑑賞能力佳'],
+                    '健康與體育': ['體能優異', '協調性佳', '團隊合作', '遵守規則', '反應靈敏', '展現運動家精神'],
+                    '自然科學': ['觀察入微', '勇於實驗', '喜愛發問', '邏輯推演', '紀錄詳實'],
+                    '社會': ['關懷環境', '具備國際觀', '尊重多元', '樂於討論', '具備公民素養']
+                };
+                const isEditingTags = ref(false); // V7.3: 標籤編輯模式
+                const newTagInput = ref(''); // V7.3: 新增標籤輸入框
+
+                // V7.5: 雙軌模型架構 - 免費版追求穩定，付費版追求極致品質
+                const FREE_MODELS = ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash'];
+                const PAID_MODELS = [
+                    'gemini-2.5-pro',
+                    'gemini-3-pro',
+                    'gemini-2.5-flash',
+                    ...FREE_MODELS // 付費模型失敗時退守到免費模型
+                ];
+
+                // 行為量表配置
+                const BEHAVIOR_CONFIG = {
+                    '敬愛人': {
+                        items: [
+                            "1.友愛同學，幫助他人，替別人著想",
+                            "2.接納和尊重不同文化的人",
+                            "3.感謝生活中為我們服務的人",
+                            "4.讚美他人，並學習他人的長處",
+                            "5.誠實面對錯誤，勇於改正"
+                        ]
+                    },
+                    '愛整潔': {
+                        items: [
+                            "1.飯前便後洗手、飯後潔牙漱口",
+                            "2.書包、抽屜和教室保持整潔，物歸定位",
+                            "3.保持儀容整潔，定期修剪指甲",
+                            "4.垃圾不落地，維護校園整潔",
+                            "5.正確使用廁所，保持整潔"
+                        ]
+                    },
+                    '守秩序': {
+                        items: [
+                            "1.遵守排隊及行進秩序",
+                            "2.不喧嘩、奔跑、做危險動作及拿東西丟人",
+                            "3.遵守用餐秩序，不邊走邊吃",
+                            "4.按時到校，上課不遲到",
+                            "5.遵守公物使用規定，不隨意破壞"
+                        ]
+                    },
+                    '有禮貌': {
+                        items: [
+                            "1.會向師長、來賓及同學問好",
+                            "2.常說「請、謝謝、對不起」",
+                            "3.仔細聆聽別人發言",
+                            "4.言行有禮，輕聲細語、不說粗暴的話",
+                            "5.虛心接受師長的指導"
+                        ]
+                    },
+                    '做環保': {
+                        items: [
+                            "1.做好垃圾分類、垃圾減量",
+                            "2.懂得資源回收再利用",
+                            "3.學校午餐、戶外活動時，自備餐具用餐",
+                            "4.節約能源，隨手關燈、關水龍頭",
+                            "5.愛物惜物，不浪費資源"
+                        ]
+                    }
+                };
+                const BEHAVIOR_OPTIONS = ['完全符合', '大部分符合', '部分符合', '待改進'];
+
+                // Computed
+                // V7.3: 從 db.customTags 讀取自定義標籤
+                const currentTags = computed(() => {
+                    if (db.customTags && db.customTags[selectedSubject.value]) {
+                        return db.customTags[selectedSubject.value];
+                    }
+                    return DEFAULT_TAGS[selectedSubject.value] || DEFAULT_TAGS['一般導師'];
+                });
+                const currentClassData = computed(() => db.classes[db.activeClassId] || { name: '未知班級', students: [], grade: '', classNum: '' });
+                const filteredStudents = computed(() => {
+                    const students = currentClassData.value.students || [];
+                    if (!searchQuery.value) return students.map((s, i) => ({ ...s, originalIndex: i }));
+                    return students.map((s, i) => ({ ...s, originalIndex: i })).filter(s => s.id.includes(searchQuery.value) || s.name.includes(searchQuery.value));
+                });
+                const students = computed(() => currentClassData.value.students || []);
+                const currentStudent = computed(() => {
+                    if (currentIdx.value === -1) return null;
+                    const student = students.value[currentIdx.value];
+                    if (student) initializeStudentData(student);
+                    return student;
+                });
+
+                // 強制初始化學生資料結構
+                const initializeStudentData = (student) => {
+                    if (!student) return;
+
+                    // 確保 behavior 物件存在且完整
+                    if (!student.behavior) {
+                        student.behavior = {};
+                    }
+                    Object.keys(BEHAVIOR_CONFIG).forEach(category => {
+                        if (!student.behavior[category]) {
+                            student.behavior[category] = {
+                                items: BEHAVIOR_CONFIG[category].items.map(() => ''),
+                                suggestion: ''
+                            };
+                        } else {
+                            // 確保 items 陣列長度正確
+                            if (!student.behavior[category].items || student.behavior[category].items.length !== BEHAVIOR_CONFIG[category].items.length) {
+                                student.behavior[category].items = BEHAVIOR_CONFIG[category].items.map(() => '');
+                            }
+                            // 確保 suggestion 存在
+                            if (student.behavior[category].suggestion === undefined) {
+                                student.behavior[category].suggestion = '';
+                            }
+                        }
+                    });
+
+                    // 確保 records 物件存在且完整
+                    if (!student.records) {
+                        student.records = {
+                            groupActivity: '',
+                            publicServiceSchool: '',
+                            publicServiceCommunity: '',
+                            specialPerformanceSchool: '',
+                            specialPerformanceExternal: ''
+                        };
+                    } else {
+                        // 確保所有欄位都存在
+                        if (student.records.groupActivity === undefined) student.records.groupActivity = '';
+                        if (student.records.publicServiceSchool === undefined) student.records.publicServiceSchool = '';
+                        if (student.records.publicServiceCommunity === undefined) student.records.publicServiceCommunity = '';
+                        if (student.records.specialPerformanceSchool === undefined) student.records.specialPerformanceSchool = '';
+                        if (student.records.specialPerformanceExternal === undefined) student.records.specialPerformanceExternal = '';
+                    }
+
+                    if (student.locked_comment === undefined) student.locked_comment = false;
+                    if (student.locked_motto === undefined) student.locked_motto = false;
+
+                    // V7.6: 歷史紀錄初始化
+                    if (!student.comment_history) student.comment_history = [];
+                    // 相容舊資料：若有現成評語但沒紀錄，將其加入歷史
+                    if (student.polished_comment && student.comment_history.length === 0) {
+                        student.comment_history.push(student.polished_comment);
+                        student.history_index = 0;
+                    }
+                    if (student.history_index === undefined) student.history_index = student.comment_history.length - 1;
+
+                    return student;
+                };
+
+                onMounted(() => {
+                    if (window.APP_CONFIG) {
+                        if (window.APP_CONFIG.GEMINI_API_KEY) { apiKey.value = window.APP_CONFIG.GEMINI_API_KEY; isConfigLoaded.value = true; }
+                        if (window.APP_CONFIG.GAS_URL) { gasUrl.value = window.APP_CONFIG.GAS_URL; }
+                    } else {
+                        const savedKey = localStorage.getItem('gemini_api_key');
+                        if (savedKey) {
+                            apiKey.value = savedKey;
+                        } else {
+                            // 沒有 API Key，顯示新手引導
+                            showWelcomeWizard.value = true;
+                        }
+                        const savedGas = localStorage.getItem('gemini_gas_url');
+                        if (savedGas) gasUrl.value = savedGas;
+                        const savedSecret = localStorage.getItem('gas_secret');
+                        if (savedSecret) gasSecret.value = savedSecret;
+                        // V7.5: 讀取金鑰等級
+                        const savedTier = localStorage.getItem('gemini_key_tier');
+                        if (savedTier) keyTier.value = savedTier;
+                    }
+                    const savedDB = localStorage.getItem('gemini_comments_v4_db');
+                    if (savedDB) {
+                        const parsed = JSON.parse(savedDB);
+                        Object.keys(parsed.classes || {}).forEach(classId => {
+                            if (parsed.classes[classId].students) {
+                                parsed.classes[classId].students.forEach(initializeStudentData);
+                            }
+                        });
+                        Object.assign(db, parsed);
+                        db.activeClassId = db.activeClassId; // 觸發 reactive 更新
+                    } else {
+                        showClassManager.value = true;
+                    }
+
+                    // V7.3: 初始化自定義標籤 (若不存在則使用預設值)
+                    if (!db.customTags) {
+                        db.customTags = JSON.parse(JSON.stringify(DEFAULT_TAGS));
+                    }
+                });
+
+                // 新手引導方法
+                const nextWizardStep = () => {
+                    if (wizardStep.value < 3) wizardStep.value++;
+                };
+                const prevWizardStep = () => {
+                    if (wizardStep.value > 1) wizardStep.value--;
+                };
+                const completeWizard = () => {
+                    if (wizardApiKey.value.trim()) {
+                        apiKey.value = wizardApiKey.value.trim();
+                        // V7.1 資安修復：僅在非公用模式時才儲存 API Key
+                        if (!isPublicMode.value) {
+                            localStorage.setItem('gemini_api_key', apiKey.value);
+                        }
+                    }
+                    showWelcomeWizard.value = false;
+                    wizardStep.value = 1;
+                    wizardApiKey.value = '';
+                };
+                const skipWizard = () => {
+                    showWelcomeWizard.value = false;
+                    wizardStep.value = 1;
+                    wizardApiKey.value = '';
+                };
+                const openWizard = () => {
+                    wizardStep.value = 1;
+                    wizardApiKey.value = '';
+                    showWelcomeWizard.value = true;
+                };
+
+                watch(db, (newVal) => localStorage.setItem('gemini_comments_v4_db', JSON.stringify(newVal)), { deep: true });
+                // V7.1 資安：公用電腦模式下不儲存 API Key
+                watch(apiKey, (newVal) => {
+                    if (!isConfigLoaded.value && !isPublicMode.value) {
+                        localStorage.setItem('gemini_api_key', newVal);
+                    }
+                });
+                watch(gasUrl, (newVal) => localStorage.setItem('gemini_gas_url', newVal));
+                watch(gasSecret, (newVal) => localStorage.setItem('gas_secret', newVal)); // V7.1 資安
+                watch(keyTier, (newVal) => localStorage.setItem('gemini_key_tier', newVal)); // V7.5: 金鑰等級持久化
+
+                // V7.1 資安修復：監聽公用模式切換
+                watch(isPublicMode, (newVal) => {
+                    if (newVal) {
+                        // 切換為公用模式：立即移除 localStorage 中的 API Key
+                        localStorage.removeItem('gemini_api_key');
+                    } else {
+                        // 切換為私人模式：將目前的 Key 存入 localStorage
+                        if (apiKey.value && !isConfigLoaded.value) {
+                            localStorage.setItem('gemini_api_key', apiKey.value);
+                        }
+                    }
+                });
+
+                // Methods
+                const selectStudent = (index) => {
+                    currentIdx.value = index;
+                    isSidebarOpen.value = false; // 手機版：選擇學生後自動收起側邊欄
+                };
+
+                const uploadToCloud = async () => {
+                    isSyncing.value = true; syncStatus.value = '☁️ 上傳中...';
+                    try {
+                        // V7.1 資安：將 secret 與 data 一起打包傳送
+                        const payload = {
+                            secret: gasSecret.value || 'meow1234', // 預設密語
+                            data: db
+                        };
+                        const response = await fetch(gasUrl.value, { method: 'POST', body: JSON.stringify(payload) });
+                        const res = await response.json();
+                        if (res.result === 'success') syncStatus.value = `✅ 成功! (${new Date().toLocaleTimeString()})`;
+                        else throw new Error(res.message || res.error || '驗證失敗');
+                    } catch (e) { syncStatus.value = '❌ 失敗:' + e.message; } finally { isSyncing.value = false; }
+                };
+                const downloadFromCloud = async () => {
+                    if (!confirm('覆蓋本機資料？')) return;
+                    isSyncing.value = true; syncStatus.value = '☁️ 下載中...';
+                    try {
+                        const response = await fetch(gasUrl.value);
+                        const cloudData = await response.json();
+                        if (cloudData && cloudData.classes) { Object.assign(db, cloudData); syncStatus.value = `✅ 還原成功！`; currentIdx.value = -1; showClassManager.value = true; }
+                        else throw new Error('資料錯誤');
+                    } catch (e) { syncStatus.value = '❌ 失敗:' + e.message; } finally { isSyncing.value = false; }
+                };
+
+                // 初始化學生行為資料結構
+                const initStudentBehavior = () => {
+                    const behavior = {};
+                    const records = {
+                        groupActivity: '',
+                        publicServiceSchool: '',
+                        publicServiceCommunity: '',
+                        specialPerformanceSchool: '',
+                        specialPerformanceExternal: ''
+                    };
+                    Object.keys(BEHAVIOR_CONFIG).forEach(category => {
+                        behavior[category] = {
+                            items: BEHAVIOR_CONFIG[category].items.map(() => ''),
+                            suggestion: ''
+                        };
+                    });
+                    return { behavior, records };
+                };
+
+                const createNewClass = () => {
+                    if (!newGrade.value || !newClassNum.value) { alert('請輸入年級與班級'); return; }
+                    const newId = 'class_' + Date.now();
+                    const newStudents = Array.from({ length: newClassCount.value }, (_, i) => {
+                        const { behavior, records } = initStudentBehavior();
+                        const student = {
+                            id: String(i + 1).padStart(2, '0'), name: '', raw_comment: '', polished_comment: '', motto: '',
+                            behavior, records
+                        };
+                        initializeStudentData(student);
+                        return student;
+                    });
+                    db.classes[newId] = {
+                        name: newClassName.value || `${newGrade.value}年${newClassNum.value}班`,
+                        grade: String(newGrade.value), classNum: String(newClassNum.value), students: newStudents
+                    };
+                    switchClass(newId);
+                    cancelEdit();
+                };
+
+                const editClass = (id) => {
+                    const cls = db.classes[id];
+                    if (!cls) return;
+                    editingClassId.value = id;
+                    newGrade.value = cls.grade || '';
+                    newClassNum.value = cls.classNum || '';
+                    newClassName.value = cls.name || '';
+                };
+
+                const updateClass = () => {
+                    if (!editingClassId.value) return;
+                    if (!newGrade.value || !newClassNum.value) { alert('請輸入年級與班級'); return; }
+                    const cls = db.classes[editingClassId.value];
+                    if (cls) {
+                        cls.grade = String(newGrade.value);
+                        cls.classNum = String(newClassNum.value);
+                        cls.name = newClassName.value || `${newGrade.value}年${newClassNum.value}班`;
+
+                        // 如果班級學生數為 0，則根據輸入的人數重新建立學生
+                        if (cls.students.length === 0 && newClassCount.value > 0) {
+                            cls.students = Array.from({ length: newClassCount.value }, (_, i) => {
+                                const { behavior, records } = initStudentBehavior();
+                                const student = {
+                                    id: String(i + 1).padStart(2, '0'), name: '', raw_comment: '', polished_comment: '', motto: '',
+                                    behavior, records
+                                };
+                                initializeStudentData(student);
+                                return student;
+                            });
+                        }
+                    }
+                    cancelEdit();
+                };
+
+                const cancelEdit = () => {
+                    editingClassId.value = null;
+                    newClassName.value = '';
+                    newGrade.value = '';
+                    newClassNum.value = '';
+                };
+                const switchClass = (id) => { db.activeClassId = id; currentIdx.value = -1; isSidebarOpen.value = false; }; // 切換班級後關閉選單
+                const deleteClass = (id) => { if (Object.keys(db.classes).length <= 1) return; if (confirm('刪除？')) { delete db.classes[id]; if (db.activeClassId === id) { db.activeClassId = Object.keys(db.classes)[0]; currentIdx.value = -1; } } };
+
+                const handleImportExcel = (e) => {
+                    const file = e.target.files[0]; if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                        const wb = XLSX.read(evt.target.result, { type: 'binary' });
+                        const ws = wb.Sheets[wb.SheetNames[0]];
+                        // V6.0: 使用索引定位方式讀取雙層表頭 Excel
+                        const data = XLSX.utils.sheet_to_json(ws, { header: 1 }); // 讀取為陣列的陣列
+
+                        if (data.length < 3) {
+                            alert('檔案格式錯誤：資料不足');
+                            return;
+                        }
+
+                        // 跳過前兩列 (Row 0, Row 1 為標題)，從 Row 2 開始
+                        const studentRows = data.slice(2);
+                        let detectedGrade = '';
+                        let detectedClassNum = '';
+
+                        // 從第一筆資料自動偵測年級與班序
+                        if (studentRows.length > 0 && studentRows[0][0]) {
+                            detectedGrade = String(studentRows[0][0]);
+                        }
+                        if (studentRows.length > 0 && studentRows[0][1]) {
+                            detectedClassNum = String(studentRows[0][1]);
+                        }
+
+                        const categories = ['敬愛人', '愛整潔', '守秩序', '有禮貌', '做環保'];
+                        const categoryOffsets = [4, 10, 16, 22, 28]; // 每大類的起始索引
+
+                        const importedStudents = studentRows.map((row, rowIdx) => {
+                            if (!row || row.length === 0) return null; // 跳過空行
+
+                            const { behavior, records } = initStudentBehavior();
+
+                            // 基本資料 (索引 0-3)
+                            const grade = row[0] ? String(row[0]) : '';
+                            const classNum = row[1] ? String(row[1]) : '';
+                            const id = row[2] ? String(Math.floor(parseFloat(row[2]))).padStart(2, '0') : String(rowIdx + 1).padStart(2, '0');
+                            const name = row[3] ? String(row[3]) : '';
+
+                            // 5 大類行為指標 (每類 5 個子題 + 1 個建議)
+                            categories.forEach((category, catIdx) => {
+                                const offset = categoryOffsets[catIdx];
+                                // 5 個子題 (索引 offset 到 offset+4)
+                                for (let i = 0; i < 5; i++) {
+                                    if (row[offset + i] !== undefined && row[offset + i] !== null && row[offset + i] !== '') {
+                                        behavior[category].items[i] = String(row[offset + i]);
+                                    }
+                                }
+                                // 具體建議 (索引 offset+5)
+                                if (row[offset + 5] !== undefined && row[offset + 5] !== null && row[offset + 5] !== '') {
+                                    behavior[category].suggestion = String(row[offset + 5]);
+                                }
+                            });
+
+                            // 多元紀錄
+                            if (row[34] !== undefined && row[34] !== null && row[34] !== '') records.groupActivity = String(row[34]);
+                            if (row[35] !== undefined && row[35] !== null && row[35] !== '') records.publicServiceSchool = String(row[35]);
+                            if (row[36] !== undefined && row[36] !== null && row[36] !== '') records.publicServiceCommunity = String(row[36]);
+                            if (row[37] !== undefined && row[37] !== null && row[37] !== '') records.specialPerformanceSchool = String(row[37]);
+                            if (row[38] !== undefined && row[38] !== null && row[38] !== '') records.specialPerformanceExternal = String(row[38]);
+
+                            // 評語 (索引 39, 40)
+                            const polished_comment = row[39] ? String(row[39]) : '';
+                            const motto = row[40] ? String(row[40]) : '';
+
+                            const student = {
+                                id, name, polished_comment, motto, raw_comment: '', behavior, records
+                            };
+                            initializeStudentData(student);
+                            return student;
+                        }).filter(s => s !== null); // 過濾空行
+
+                        const newId = 'class_import_' + Date.now();
+                        let className = file.name.replace(/\.[^/.]+$/, "");
+                        if (detectedGrade && detectedClassNum) {
+                            className = `${detectedGrade}年${detectedClassNum}班 (匯入)`;
+                        }
+                        db.classes[newId] = { name: className, grade: detectedGrade, classNum: detectedClassNum, students: importedStudents };
+                        switchClass(newId);
+                        showClassManager.value = false;
+                        alert(detectedGrade && detectedClassNum ? `匯入成功！${detectedGrade}年${detectedClassNum}班，共 ${importedStudents.length} 位學生。` : '匯入成功！請手動設定年級與班序。');
+                    };
+                    reader.readAsBinaryString(file);
+                    e.target.value = '';
+                };
+
+                const resetCurrentClass = () => { if (confirm('清空？')) { db.classes[db.activeClassId].students = []; currentIdx.value = -1; } };
+                const addTag = (tag) => { if (currentStudent.value) currentStudent.value.raw_comment += (currentStudent.value.raw_comment ? '、' : '') + tag; };
+
+                // V7.3: 自定義標籤方法
+                const addCustomTag = () => {
+                    const tagName = newTagInput.value.trim();
+                    if (!tagName) return;
+                    if (!db.customTags) db.customTags = JSON.parse(JSON.stringify(DEFAULT_TAGS));
+                    if (!db.customTags[selectedSubject.value]) {
+                        db.customTags[selectedSubject.value] = [...(DEFAULT_TAGS[selectedSubject.value] || [])];
+                    }
+                    if (!db.customTags[selectedSubject.value].includes(tagName)) {
+                        db.customTags[selectedSubject.value].push(tagName);
+                    }
+                    newTagInput.value = '';
+                };
+                const removeCustomTag = (index) => {
+                    if (!db.customTags || !db.customTags[selectedSubject.value]) return;
+                    const tagName = db.customTags[selectedSubject.value][index];
+                    if (confirm(`確定要刪除標籤「${tagName}」嗎？`)) {
+                        db.customTags[selectedSubject.value].splice(index, 1);
+                    }
+                };
+                const resetTags = () => {
+                    if (confirm(`確定要將「${selectedSubject.value}」的標籤還原為預設值嗎？`)) {
+                        if (!db.customTags) db.customTags = {};
+                        db.customTags[selectedSubject.value] = [...(DEFAULT_TAGS[selectedSubject.value] || [])];
+                    }
+                };
+
+                // 一鍵預設行為量表
+                const setDefaultBehavior = () => {
+                    if (!currentStudent.value) return;
+                    initializeStudentData(currentStudent.value);
+                    Object.keys(BEHAVIOR_CONFIG).forEach(category => {
+                        BEHAVIOR_CONFIG[category].items.forEach((_, idx) => {
+                            currentStudent.value.behavior[category].items[idx] = '大部分符合';
+                        });
+                    });
+                    db.activeClassId = db.activeClassId; // 觸發更新
+                };
+
+                // V7.6: 歷史紀錄控制邏輯
+                const pushToHistory = (newComment) => {
+                    if (!currentStudent.value) return;
+                    const student = currentStudent.value;
+
+                    // 若新內容與當前一致，則不重複紀錄
+                    if (student.comment_history.length > 0 &&
+                        student.comment_history[student.history_index] === newComment) {
+                        return;
+                    }
+
+                    // 若在歷史中間修改，捨棄後續紀錄 (Truncate future)
+                    if (student.history_index < student.comment_history.length - 1) {
+                        student.comment_history = student.comment_history.slice(0, student.history_index + 1);
+                    }
+
+                    student.comment_history.push(newComment);
+
+                    // 限制歷史長度為 15 筆
+                    if (student.comment_history.length > 15) {
+                        student.comment_history.shift();
+                    }
+
+                    student.history_index = student.comment_history.length - 1;
+                    // 強制更新主要欄位以保持同步 (防禦性程式設計)
+                    student.polished_comment = newComment;
+                };
+
+                const undo = () => {
+                    if (!currentStudent.value || currentStudent.value.history_index <= 0) return;
+                    currentStudent.value.history_index--;
+                    currentStudent.value.polished_comment = currentStudent.value.comment_history[currentStudent.value.history_index];
+                };
+
+                const redo = () => {
+                    if (!currentStudent.value ||
+                        currentStudent.value.history_index >= currentStudent.value.comment_history.length - 1) return;
+                    currentStudent.value.history_index++;
+                    currentStudent.value.polished_comment = currentStudent.value.comment_history[currentStudent.value.history_index];
+                };
+
+                // 手動編輯完成後觸發 (Blur)
+                const handleCommentBlur = () => {
+                    if (!currentStudent.value) return;
+                    pushToHistory(currentStudent.value.polished_comment);
+                };
+
+                // 修正后的 generateComment 函式核心
+                const generateComment = async () => {
+                    // 1. 基礎防呆
+                    if (!apiKey.value) { alert('請輸入 Key'); return; }
+                    if (!currentStudent.value.name) { alert('請輸入姓名'); return; }
+                    if (!currentStudent.value.raw_comment) { alert('請輸入紀錄'); return; }
+
+                    // V7.4: 檢查鎖定狀態
+                    const isCommentLocked = currentStudent.value.locked_comment;
+                    const isMottoLocked = currentStudent.value.locked_motto;
+
+                    if (isCommentLocked && isMottoLocked) {
+                        alert('⚠️ 評語與箴言皆已鎖定，無法生成！請先解鎖欲修改的欄位。');
+                        return;
+                    }
+
+                    // 2. 設定狀態與逾時控制器
+                    isGenerating.value = true;
+                    const originalComment = currentStudent.value.polished_comment; // 保留原始內容
+                    if (!isCommentLocked) {
+                        currentStudent.value.polished_comment = "🐾 貓貓思考中...";
+                    }
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 30000); // V7.4.2: 延長至 30 秒
+
+                    // V7.4: 根據鎖定狀態動態調整任務說明
+                    let taskInstruction = '';
+                    if (isCommentLocked && !isMottoLocked) {
+                        taskInstruction = '⚠️ 任務限制：使用者已鎖定「comment」欄位，請**僅生成 motto (八字箴言)**，comment 欄位請回傳空字串。';
+                    } else if (!isCommentLocked && isMottoLocked) {
+                        taskInstruction = '⚠️ 任務限制：使用者已鎖定「motto」欄位，請**僅生成 comment (暖心評語)**，motto 欄位請回傳空字串。';
+                    } else {
+                        taskInstruction = '請同時生成 comment 與 motto。';
+                    }
+
+                    // 3. 精心設計的 Prompt (切勿精簡此段)
+                    const prompt = `
+                    角色設定：你現在身兼兩個角色。
+                    1. 【給家長看】你是一位溫暖、正向的台灣國小導師。
+                    2. 【給校方存檔】你是一位**客觀、嚴格、不帶感情**的教務處紀錄人員。
+                    
+                    輸入資料：
+                    - 學生姓名：${currentStudent.value.name}
+                    - 觀察紀錄：${currentStudent.value.raw_comment}
+                    
+                    ${taskInstruction}
+                    
+                    任務：請根據「觀察紀錄」進行分析，並輸出 JSON 格式結果。
+                    
+                    *** 關鍵邏輯 (Motto 生成規則) ***
+                    請先在心裡對「觀察紀錄」進行評分 (Score 1-10)：
+                    - 分數 1-4 (負面/需改進)：內容包含干擾上課、作業缺交、打架、無禮、粗心等。
+                    - 分數 5-7 (普通/好壞參半)：有優點也有明顯缺點。
+                    - 分數 8-10 (正面/優良)：絕大多數為正向描述。
+
+                    嚴格執行以下對應 (不可混淆)：
+                    - 若為【負面】：絕對禁止使用「活潑、開朗、聰明、潛力」等正向詞。必須使用**「糾正型」**詞彙，如：遵守校規、改進常規、專注學業、加強自律、端正品行。
+                    - 若為【普通】：必須是「一個優點 + 一個建議」。
+                    - 若為【正面】：才可以使用「品學兼優、熱心助人」等讚美詞。
+
+                    輸出格式 (JSON)：
+                    {
+                        "analysis": "請輸出你的判斷：(A)全優 / (B)半優半缺 / (C)多缺點",
+                        "comment": "給學生的暖心評語 (70-100字，三明治法，將缺點轉化為期待)，若被要求略過則填空字串",
+                        "motto": "給校方的八字箴言 (嚴格遵守上述邏輯，四字，四字)，若被要求略過則填空字串"
+                    }
+                    
+                    範例參考：
+                    - 觀察紀錄："上課愛講話，作業隨便寫" -> 判定為(C) -> motto: "改進常規，端正態度" (❌不可寫：活潑健談)
+                    - 觀察紀錄："很聰明但粗心" -> 判定為(B) -> motto: "反應靈敏，加強細心"
+                `;
+
+                    // 4. API 呼叫 (包含錯誤處理與重試邏輯)
+                    // V7.5: 根據金鑰等級選擇模型清單
+                    const candidateModels = keyTier.value === 'paid' ? PAID_MODELS : FREE_MODELS;
+                    let success = false;
+                    for (const model of candidateModels) {
+                        try {
+                            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.value}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+                                signal: controller.signal // 綁定逾時訊號
+                            });
+
+                            const data = await res.json();
+                            if (data.candidates) {
+                                let text = data.candidates[0].content.parts[0].text
+                                    .replace(/```json/g, '')
+                                    .replace(/```/g, '')
+                                    .trim();
+                                const result = JSON.parse(text);
+
+                                // V7.4: 只更新未鎖定的欄位
+                                if (!isCommentLocked && result.comment) {
+                                    currentStudent.value.polished_comment = result.comment;
+                                    // V7.6: AI 生成成功，寫入歷史紀錄
+                                    pushToHistory(result.comment);
+                                } else if (!isCommentLocked) {
+                                    currentStudent.value.polished_comment = originalComment || ''; // 還原或清空
+                                }
+                                if (!isMottoLocked && result.motto) {
+                                    currentStudent.value.motto = result.motto;
+                                }
+                                success = true;
+                                break; // 成功則跳出迴圈
+                            }
+                        } catch (e) {
+                            // V7.4.2: 強化錯誤處理
+                            if (e.name === 'AbortError') {
+                                console.warn(`Model ${model} timed out.`);
+                            } else if (e.message && (e.message.includes('429') || e.message.includes('Resource exhausted'))) {
+                                // 檢測到 API 速率限制，立即中止重試並提示使用者
+                                clearTimeout(timeoutId);
+                                controller.abort(); // 立即釋放資源
+                                if (!isCommentLocked) {
+                                    currentStudent.value.polished_comment = originalComment || '';
+                                }
+                                isGenerating.value = false;
+                                alert('⚠️ 休息一下吧！\n\n您觸發了 Google 免費版的「每分鐘使用次數限制」。\n請喝口水，等待 1 分鐘後再試。');
+                                return; // 直接結束函式，不繼續重試
+                            } else {
+                                console.error(`Model ${model} error:`, e);
+                            }
+                        }
+                    }
+
+                    // 5. 收尾與狀態重置
+                    clearTimeout(timeoutId); // 清除計時器
+                    controller.abort(); // V7.4.2: 強制釋放連線資源，防止佔線
+
+                    if (!success) {
+                        // V7.4: 失敗時還原原始內容
+                        if (!isCommentLocked) {
+                            currentStudent.value.polished_comment = originalComment || "❌ 生成失敗或連線逾時，請再試一次。";
+                        }
+                        alert('貓貓想太久了(超過30秒)或是網路不穩，請再按一次「幫我寫」！');
+                    }
+                    isGenerating.value = false;
+                };
+
+                // V7.1 資安：Excel Formula Injection 防護
+                const sanitizeForExcel = (value) => {
+                    if (typeof value !== 'string') return value;
+                    // 若字串以 =, +, -, @ 開頭，加上單引號防止公式執行
+                    if (/^[=+\-@]/.test(value)) return "'" + value;
+                    return value;
+                };
+
+                const exportToExcel = () => {
+                    JSON.stringify(db); // 觸發 reactive 更新
+                    const cls = currentClassData.value;
+                    const grade = cls.grade || '未設定';
+                    const classNum = cls.classNum || '未設定';
+
+                    // 初始化所有學生資料
+                    const processedStudents = students.value.map(s => {
+                        initializeStudentData(s);
+                        return s;
+                    });
+
+                    // 建立雙層表頭陣列
+                    const ws_data = [];
+
+                    // Row 0: 大分類表頭
+                    const row0 = [
+                        '※年級', '※班級編號', '※座號', '※姓名',  // Col A-D (0-3)
+                        '※敬愛人', '', '', '', '', '',  // Col E-J (4-9)
+                        '※愛整潔', '', '', '', '', '',  // Col K-P (10-15)
+                        '※守秩序', '', '', '', '', '',  // Col Q-V (16-21)
+                        '※有禮貌', '', '', '', '', '',  // Col W-AB (22-27)
+                        '※做環保', '', '', '', '', '',  // Col AC-AH (28-33)
+                        '團體活動紀錄',  // Col AI (34)
+                        '公共服務紀錄', '',  // Col AJ-AK (35-36)
+                        '校內外特殊表現紀錄', '',  // Col AL-AM (37-38)
+                        '學期成績單導師評語',  // Col AN (39)
+                        '學籍卡導師評語'  // Col AO (40)
+                    ];
+                    ws_data.push(row0);
+
+                    // Row 1: 子項目表頭
+                    const row1 = [
+                        '', '', '', '',  // Col A-D 留空（垂直合併）
+                    ];
+
+                    // 5 大類行為指標子項目
+                    Object.keys(BEHAVIOR_CONFIG).forEach(category => {
+                        BEHAVIOR_CONFIG[category].items.forEach(item => row1.push(item));
+                        row1.push('具體建議');
+                    });
+
+                    // 多元紀錄子項目
+                    row1.push('');  // Col AI (34) 團體活動紀錄留空（垂直合併）
+                    row1.push('校內服務');  // Col AJ (35)
+                    row1.push('社區服務');  // Col AK (36)
+                    row1.push('校內特殊表現');  // Col AL (37)
+                    row1.push('校外特殊表現');  // Col AM (38)
+                    row1.push('');  // Col AN (39) 學期成績單導師評語留空（垂直合併）
+                    row1.push('');  // Col AO (40) 學籍卡導師評語留空（垂直合併）
+
+                    ws_data.push(row1);
+
+                    // Row 2+: 學生資料 (V7.1 資安：所有字串欄位經過消毒處理)
+                    processedStudents.forEach(s => {
+                        const studentRow = [
+                            grade,  // Col A: 年級
+                            classNum,  // Col B: 班級編號
+                            parseInt(s.id, 10) || 0,  // Col C: 座號
+                            sanitizeForExcel(s.name || '')  // Col D: 姓名
+                        ];
+
+                        // 5 大類行為指標（每類 5 個子題 + 1 個具體建議）
+                        const categories = ['敬愛人', '愛整潔', '守秩序', '有禮貌', '做環保'];
+                        categories.forEach(category => {
+                            BEHAVIOR_CONFIG[category].items.forEach((_, idx) => {
+                                studentRow.push(sanitizeForExcel((s.behavior[category] && s.behavior[category].items[idx]) || ''));
+                            });
+                            studentRow.push(sanitizeForExcel((s.behavior[category] && s.behavior[category].suggestion) || ''));
+                        });
+
+                        // 多元紀錄
+                        studentRow.push(sanitizeForExcel(s.records.groupActivity || ''));  // Col AI: 團體活動紀錄
+                        studentRow.push(sanitizeForExcel(s.records.publicServiceSchool || ''));  // Col AJ: 校內服務
+                        studentRow.push(sanitizeForExcel(s.records.publicServiceCommunity || ''));  // Col AK: 社區服務
+                        studentRow.push(sanitizeForExcel(s.records.specialPerformanceSchool || ''));  // Col AL: 校內特殊表現
+                        studentRow.push(sanitizeForExcel(s.records.specialPerformanceExternal || ''));  // Col AM: 校外特殊表現
+
+                        // 評語
+                        studentRow.push(sanitizeForExcel(s.polished_comment || ''));  // Col AN: 學期成績單導師評語
+                        studentRow.push(sanitizeForExcel(s.motto || ''));  // Col AO: 學籍卡導師評語
+
+                        ws_data.push(studentRow);
+                    });
+
+                    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+                    // 設定合併儲存格
+                    ws['!merges'] = [
+                        // 垂直合併 Row 0-1: 基本資料 (Col A-D)
+                        { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } },  // 年級
+                        { s: { r: 0, c: 1 }, e: { r: 1, c: 1 } },  // 班級編號
+                        { s: { r: 0, c: 2 }, e: { r: 1, c: 2 } },  // 座號
+                        { s: { r: 0, c: 3 }, e: { r: 1, c: 3 } },  // 姓名
+
+                        // 水平合併 Row 0: 敬愛人 (Col E-J, 索引4-9)
+                        { s: { r: 0, c: 4 }, e: { r: 0, c: 9 } },
+                        // 水平合併 Row 0: 愛整潔 (Col K-P, 索引10-15)
+                        { s: { r: 0, c: 10 }, e: { r: 0, c: 15 } },
+                        // 水平合併 Row 0: 守秩序 (Col Q-V, 索引16-21)
+                        { s: { r: 0, c: 16 }, e: { r: 0, c: 21 } },
+                        // 水平合併 Row 0: 有禮貌 (Col W-AB, 索引22-27)
+                        { s: { r: 0, c: 22 }, e: { r: 0, c: 27 } },
+                        // 水平合併 Row 0: 做環保 (Col AC-AH, 索引28-33)
+                        { s: { r: 0, c: 28 }, e: { r: 0, c: 33 } },
+
+                        // 垂直合併 Row 0-1: 團體活動紀錄 (Col AI, 索引34)
+                        { s: { r: 0, c: 34 }, e: { r: 1, c: 34 } },
+
+                        // 水平合併 Row 0: 公共服務紀錄 (Col AJ-AK, 索引35-36)
+                        { s: { r: 0, c: 35 }, e: { r: 0, c: 36 } },
+                        // 水平合併 Row 0: 校內外特殊表現紀錄 (Col AL-AM, 索引37-38)
+                        { s: { r: 0, c: 37 }, e: { r: 0, c: 38 } },
+
+                        // 垂直合併 Row 0-1: 學期成績單導師評語 (Col AN, 索引39)
+                        { s: { r: 0, c: 39 }, e: { r: 1, c: 39 } },
+                        // 垂直合併 Row 0-1: 學籍卡導師評語 (Col AO, 索引40)
+                        { s: { r: 0, c: 40 }, e: { r: 1, c: 40 } }
+                    ];
+
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "日常表現與導師評語");
+                    XLSX.writeFile(wb, `日常行為表現與導師評語匯入檔(${grade}0${classNum}).xlsx`);
+                };
+                const copyResult = () => navigator.clipboard.writeText(currentStudent.value.polished_comment);
+
+                // 複製 GAS 程式碼 (V7.1 含驗證機制)
+                const gasCode = `// ⚠️ 請將下方 "meow1234" 改為自訂密語！
+var SECRET = "meow1234";
+
+function doPost(e) {
+  var payload = JSON.parse(e.postData.contents);
+  // 驗證通關密語
+  if (payload.secret !== SECRET) {
+    return ContentService.createTextOutput(JSON.stringify({"result":"error","message":"密語錯誤"})).setMimeType(ContentService.MimeType.JSON);
+  }
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  sheet.getRange("A1").setValue(JSON.stringify(payload.data));
+  return ContentService.createTextOutput(JSON.stringify({"result":"success"})).setMimeType(ContentService.MimeType.JSON);
+}
+function doGet(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = sheet.getRange("A1").getValue();
+  return ContentService.createTextOutput(data).setMimeType(ContentService.MimeType.JSON);
+}`;
+                const copyGasCode = () => {
+                    navigator.clipboard.writeText(gasCode);
+                    alert('✅ 程式碼已複製！請前往 Google Apps Script 貼上。');
+                };
+
+                // V7.1 資安：一鍵清除所有敏感資料
+                const clearAllData = () => {
+                    if (!confirm('⚠️ 確定要清除所有敏感資料嗎？\n\n將會清除：\n• API Key\n• GAS 網址\n• 通關密語\n\n班級資料不會受到影響。')) return;
+                    localStorage.removeItem('gemini_api_key');
+                    localStorage.removeItem('gemini_gas_url');
+                    localStorage.removeItem('gas_secret');
+                    alert('✅ 敏感資料已清除！頁面將重新整理。');
+                    location.reload();
+                };
+
+                return {
+                    apiKey, isConfigLoaded, isPublicMode, students, currentIdx, currentStudent, isGenerating, searchQuery, filteredStudents, selectedSubject, currentTags,
+                    db, showClassManager, newClassName, newClassCount, currentClassData, showCloudModal, gasUrl, gasSecret, isSyncing, syncStatus,
+                    newGrade, newClassNum, isSidebarOpen, activeTab,
+                    BEHAVIOR_CONFIG, BEHAVIOR_OPTIONS,
+                    isEditingTags, newTagInput, addCustomTag, removeCustomTag, resetTags,
+                    createNewClass, editClass, updateClass, cancelEdit, switchClass, deleteClass, handleImportExcel, resetCurrentClass, selectStudent, addTag, generateComment, exportToExcel, copyResult, copyGasCode, clearAllData, uploadToCloud, downloadFromCloud,
+                    setDefaultBehavior, editingClassId,
+                    showWelcomeWizard, wizardStep, wizardApiKey, nextWizardStep, prevWizardStep, completeWizard, skipWizard, openWizard,
+                    undo, redo, handleCommentBlur
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>
