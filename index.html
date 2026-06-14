@@ -826,11 +826,12 @@ function doGet(e) {
                 const newTagInput = ref(''); // V7.3: 新增標籤輸入框
 
                 // V7.5: 雙軌模型架構 - 免費版追求穩定，付費版追求極致品質
-                const FREE_MODELS = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
+                const FREE_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3.5-flash'];
                 const PAID_MODELS = [
-                    'gemini-2.5-flash',
                     'gemini-2.5-pro',
-                    ...FREE_MODELS
+                    'gemini-3.5-flash',
+                    'gemini-2.5-flash',
+                    'gemini-2.5-flash-lite',
                 ];
 
                 // 行為量表配置
