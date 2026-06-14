@@ -826,12 +826,11 @@ function doGet(e) {
                 const newTagInput = ref(''); // V7.3: 新增標籤輸入框
 
                 // V7.5: 雙軌模型架構 - 免費版追求穩定，付費版追求極致品質
-                const FREE_MODELS = ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash'];
+                const FREE_MODELS = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
                 const PAID_MODELS = [
-                    'gemini-2.5-pro',
-                    'gemini-3-pro',
                     'gemini-2.5-flash',
-                    ...FREE_MODELS // 付費模型失敗時退守到免費模型
+                    'gemini-2.5-pro',
+                    ...FREE_MODELS
                 ];
 
                 // 行為量表配置
@@ -1365,14 +1364,12 @@ function doGet(e) {
                         return;
                     }
 
-                    // 2. 設定狀態與逾時控制器
+                    // 2. 設定狀態
                     isGenerating.value = true;
-                    const originalComment = currentStudent.value.polished_comment; // 保留原始內容
+                    const originalComment = currentStudent.value.polished_comment;
                     if (!isCommentLocked) {
                         currentStudent.value.polished_comment = "🐾 貓貓思考中...";
                     }
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 30000); // V7.4.2: 延長至 30 秒
 
                     // V7.4: 根據鎖定狀態動態調整任務說明
                     let taskInstruction = '';
@@ -1421,18 +1418,37 @@ function doGet(e) {
                     - 觀察紀錄："很聰明但粗心" -> 判定為(B) -> motto: "反應靈敏，加強細心"
                 `;
 
-                    // 4. API 呼叫 (包含錯誤處理與重試邏輯)
-                    // V7.5: 根據金鑰等級選擇模型清單
+                    // 4. API 呼叫（每個模型獨立 30 秒超時 + 錯誤回報）
                     const candidateModels = keyTier.value === 'paid' ? PAID_MODELS : FREE_MODELS;
                     let success = false;
+                    let lastError = '';
                     for (const model of candidateModels) {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 30000);
                         try {
                             const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.value}`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-                                signal: controller.signal // 綁定逾時訊號
+                                signal: controller.signal
                             });
+                            clearTimeout(timeoutId);
+
+                            if (!res.ok) {
+                                const errBody = await res.json().catch(() => ({}));
+                                const errMsg = errBody?.error?.message || res.statusText;
+                                if (res.status === 429) {
+                                    if (!isCommentLocked) {
+                                        currentStudent.value.polished_comment = originalComment || '';
+                                    }
+                                    isGenerating.value = false;
+                                    alert('⚠️ 休息一下吧！\n\n您觸發了 Google 免費版的「每分鐘使用次數限制」。\n請喝口水，等待 1 分鐘後再試。');
+                                    return;
+                                }
+                                lastError = `${model}: ${res.status} ${errMsg}`;
+                                console.warn(`Model ${model} HTTP ${res.status}:`, errMsg);
+                                continue;
+                            }
 
                             const data = await res.json();
                             if (data.candidates) {
@@ -1442,50 +1458,36 @@ function doGet(e) {
                                     .trim();
                                 const result = JSON.parse(text);
 
-                                // V7.4: 只更新未鎖定的欄位
                                 if (!isCommentLocked && result.comment) {
                                     currentStudent.value.polished_comment = result.comment;
-                                    // V7.6: AI 生成成功，寫入歷史紀錄
                                     pushToHistory(result.comment);
                                 } else if (!isCommentLocked) {
-                                    currentStudent.value.polished_comment = originalComment || ''; // 還原或清空
+                                    currentStudent.value.polished_comment = originalComment || '';
                                 }
                                 if (!isMottoLocked && result.motto) {
                                     currentStudent.value.motto = result.motto;
                                 }
                                 success = true;
-                                break; // 成功則跳出迴圈
+                                break;
                             }
+                            lastError = `${model}: API 回傳無 candidates`;
                         } catch (e) {
-                            // V7.4.2: 強化錯誤處理
+                            clearTimeout(timeoutId);
                             if (e.name === 'AbortError') {
+                                lastError = `${model}: 超過 30 秒未回應`;
                                 console.warn(`Model ${model} timed out.`);
-                            } else if (e.message && (e.message.includes('429') || e.message.includes('Resource exhausted'))) {
-                                // 檢測到 API 速率限制，立即中止重試並提示使用者
-                                clearTimeout(timeoutId);
-                                controller.abort(); // 立即釋放資源
-                                if (!isCommentLocked) {
-                                    currentStudent.value.polished_comment = originalComment || '';
-                                }
-                                isGenerating.value = false;
-                                alert('⚠️ 休息一下吧！\n\n您觸發了 Google 免費版的「每分鐘使用次數限制」。\n請喝口水，等待 1 分鐘後再試。');
-                                return; // 直接結束函式，不繼續重試
                             } else {
+                                lastError = `${model}: ${e.message}`;
                                 console.error(`Model ${model} error:`, e);
                             }
                         }
                     }
 
-                    // 5. 收尾與狀態重置
-                    clearTimeout(timeoutId); // 清除計時器
-                    controller.abort(); // V7.4.2: 強制釋放連線資源，防止佔線
-
                     if (!success) {
-                        // V7.4: 失敗時還原原始內容
                         if (!isCommentLocked) {
-                            currentStudent.value.polished_comment = originalComment || "❌ 生成失敗或連線逾時，請再試一次。";
+                            currentStudent.value.polished_comment = originalComment || "❌ 生成失敗，請再試一次。";
                         }
-                        alert('貓貓想太久了(超過30秒)或是網路不穩，請再按一次「幫我寫」！');
+                        alert(`貓貓遇到困難了！所有模型都無法回應。\n\n最後一個錯誤：${lastError}\n\n請檢查 API Key 是否正確，或稍後再試。`);
                     }
                     isGenerating.value = false;
                 };
